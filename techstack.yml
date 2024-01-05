@@ -1,0 +1,40 @@
+repo_name: velesnitski/velesnitski.github.io
+report_id: 879e946425cde61572f6e1792b32fc96
+version: 0.1
+repo_type: Public
+timestamp: '2024-01-05T08:36:51+00:00'
+requested_by: velesnitski
+provider: github
+branch: main
+detected_tools_count: 3
+tools:
+- name: CSS 3
+  description: The latest evolution of the Cascading Style Sheets language
+  website_url: https://developer.mozilla.org/en-US/docs/Web/CSS/CSS3
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/6727/css.png
+  detection_source_url: https://github.com/velesnitski/velesnitski.github.io
+  detection_source: Repo Metadata
+- name: Git
+  description: Fast, scalable, distributed revision control system
+  website_url: http://git-scm.com/
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Version Control System
+  image_url: https://img.stackshare.io/service/1046/git.png
+  detection_source_url: https://github.com/velesnitski/velesnitski.github.io
+  detection_source: Repo Metadata
+- name: HTML
+  description: Hypertext Markup Language for creating web pages.
+  website_url: http://
+  open_source: false
+  hosted_saas: false
+  image_url: https://img.stackshare.io/service/2270/no-img-open-source.png
+  detection_source_url: https://github.com/velesnitski/velesnitski.github.io/blob/main/index.html
+  detection_source: index.html
+  last_updated_by: velesnitski
+  last_updated_on: 2023-09-19 13:15:16.000000000 Z
