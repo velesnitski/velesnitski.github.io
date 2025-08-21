@@ -1,2 +1,7 @@
 User-agent: *
-Disallow:
+Allow: /
+Sitemap: https://velesnitski.github.io/sitemap.xml
+
+# Prevent caching of assets
+Disallow: /assets/
+Disallow: /favicons/
