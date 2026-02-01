@@ -29,7 +29,18 @@
 		<meta name="robots" content="index, follow" />
 		<meta http-equiv="language" content="en" />
 		<!-- Http security headers -->
-		<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.googletagmanager.com https://www.google-analytics.com https://mc.yandex.ru https://yastatic.net; connect-src 'self' https://www.google-analytics.com https://mc.yandex.ru; img-src 'self' data: https://www.googletagmanager.com https://mc.yandex.ru; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src https://mc.yandex.ru; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+		<meta http-equiv="Content-Security-Policy" content="
+			default-src * data: blob: 'self';
+			script-src * data: blob: 'self' 'unsafe-inline' 'unsafe-eval';
+			connect-src * data: blob: 'self';
+			img-src * data: blob: 'self';
+			style-src * data: blob: 'self' 'unsafe-inline';
+			font-src * data: blob: 'self';
+			frame-src * data: blob: 'self';
+			object-src *;
+			base-uri *;
+			form-action *;
+			upgrade-insecure-requests">
 		<meta http-equiv="Strict-Transport-Security" content="max-age=63072000; includeSubDomains; preload">
 		<meta http-equiv="X-Content-Type-Options" content="nosniff">
 		<meta http-equiv="X-XSS-Protection" content="1; mode=block">
@@ -74,7 +85,7 @@
 				<!-- Header -->
 					<header id="header">
 						<h1>Alex Velesnitski</h1>
-						<p>CTO and Engineering Manager. <br/> ex-CTO @<a href="https://timspark.com/technologies/">Timspark</a> / ex-CTO @<a href="https://intetics.com/methodology/team-formation/">Intetics</a></p>
+						<p>Currently Head of Engineering @ <a href="https://www.google.com/search?q=cybersecurity">🥷</a><br/> ex-CTO @<a href="https://timspark.com/technologies/">Timspark</a> / ex-CTO @<a href="https://intetics.com/methodology/team-formation/">Intetics</a></p>
 						<p2>My typical consulting and development rates are 80$+ per hour.
 							 <br/> In the case of extended projects, potential reductions and bespoke package rates are open for discussion.
 						</p2>
