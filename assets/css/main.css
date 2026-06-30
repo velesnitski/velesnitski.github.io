@@ -1099,7 +1099,7 @@ input, select, textarea {
 			#header {
 				top: 0;
 				vertical-align: top;
-				padding: 2.5em 0 7em 0;
+				padding: 2.5em 0 0 0;
 			}
 
 				#header h1 {
@@ -1114,5 +1114,17 @@ input, select, textarea {
 				#header nav {
 					margin: 1.25em 0 0 0;
 				}
+
+		/* Let the footer flow after the content instead of pinning it
+		   to the bottom, so it can't overlap the Followers button. */
+
+			#footer {
+				position: relative;
+				bottom: auto;
+				height: auto;
+				line-height: 1.6;
+				margin: 1.75em 0 0 0;
+				padding: 1.25em 0 1.75em 0;
+			}
 
 	}
