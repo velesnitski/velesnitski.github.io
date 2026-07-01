@@ -359,7 +359,7 @@ function missionPanel(){
   ctx.fillStyle='rgba(18,28,26,.68)'; ctx.beginPath(); ctx.roundRect(x,y,w,h,16); ctx.fill();
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 23px system-ui,sans-serif'; ctx.fillText('🍓 Strawberry Dash',W/2,y+28);
   ctx.font='bold 13px system-ui,sans-serif'; ctx.fillStyle='#ffd27a';
-  ctx.fillText(challenge>0 ? ('🔥 a friend dares you — beat '+challenge+'!') : ('📋 daily · 🔥 '+streak+'d streak · 🍓 '+wallet+' saved'), W/2, y+48);
+  ctx.fillText(challenge>0 ? ('🔥 a friend dares you — beat '+challenge+'!') : ('📋 daily · 🔥 '+streak+'d streak · 🍓 '+wallet+' saved'+(weather!=='clear'?' · '+wxEmoji():'')), W/2, y+48);
   ctx.font='600 14px system-ui,sans-serif';
   missions.forEach((m,i)=>{ const yy=y+72+i*rowH; ctx.textAlign='left'; ctx.fillStyle=m.done?'#7fe0a0':'#e8eef5';
     ctx.fillText((m.done?'✓ ':m.icon+' ')+m.text, x+22, yy);
@@ -509,6 +509,42 @@ function speedLines(){ if(state!=='play') return; const inten=Math.max(0,Math.mi
   for(let i=0;i<7;i++){ const y=(i*53+t*11)%H, len=36+(i%3)*26, x=((i*150 - t*speed*3.2)%(W+140)+(W+140))%(W+140)-70;
     ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+len,y); ctx.stroke(); } }
 
+// ---- dynamic weather from the player's real local weather (free, no key) ----
+let weather='clear';
+function wxCat(code){ if(code==null) return 'clear';
+  if(code===0||code===1) return 'clear'; if(code===2||code===3) return 'clouds';
+  if(code===45||code===48) return 'fog'; if((code>=71&&code<=77)||code===85||code===86) return 'snow';
+  if(code>=95) return 'thunder'; if((code>=51&&code<=67)||(code>=80&&code<=82)) return 'rain'; return 'clouds'; }
+function wxEmoji(){ return ({clear:'☀️',clouds:'☁️',rain:'🌧️',snow:'❄️',fog:'🌫️',thunder:'⛈️'})[weather]||''; }
+async function initWeather(){
+  const f=P.get('wx'); if(f){ weather=f; return; }               // debug override
+  try{ const c=JSON.parse(localStorage.getItem('dinoWx')||'null'); if(c && (Date.now()-c.ts)<5400000){ weather=c.cat; return; } }catch(e){}
+  try{
+    const g=await fetch('https://ipapi.co/json/').then(r=>r.json());
+    if(!g || g.latitude==null) return;
+    const w=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+g.latitude+'&longitude='+g.longitude+'&current_weather=true').then(r=>r.json());
+    const cat=wxCat(w && w.current_weather && w.current_weather.weathercode);
+    weather=cat; try{ localStorage.setItem('dinoWx',JSON.stringify({cat,ts:Date.now()})); }catch(e){}
+    if(cat!=='clear') toast(wxEmoji()+' real weather today!');
+  }catch(e){ /* offline / blocked → stay clear, game unaffected */ }
+}
+function drawWeather(){
+  if(weather==='clear') return;
+  if(weather==='clouds'){ ctx.fillStyle='rgba(120,130,150,.10)'; ctx.fillRect(-20,-20,W+40,H+40); return; }
+  if(weather==='fog'){ ctx.fillStyle='rgba(232,236,240,.30)'; ctx.fillRect(-20,-20,W+40,H+40); return; }
+  if(weather==='rain'||weather==='thunder'){
+    ctx.fillStyle='rgba(40,55,80,.18)'; ctx.fillRect(-20,-20,W+40,H+40);
+    ctx.strokeStyle='rgba(185,205,235,.5)'; ctx.lineWidth=2; ctx.lineCap='round';
+    for(let i=0;i<64;i++){ const x=(((i*67)+t*13)%(W+60))-30, y=(((i*97)+t*24)%(H+60))-30; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x-4,y+13); ctx.stroke(); }
+    if(weather==='thunder' && Math.floor(t/11)%43===0){ ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillRect(-20,-20,W+40,H+40); }
+    return; }
+  if(weather==='snow'){
+    ctx.fillStyle='rgba(222,236,246,.12)'; ctx.fillRect(-20,-20,W+40,H+40);
+    ctx.fillStyle='rgba(255,255,255,.92)';
+    for(let i=0;i<52;i++){ const x=(((i*53)+Math.sin(t*0.02+i)*22)+W*2)%(W+20)-10, y=(((i*61)+t*1.7)%(H+40))-20; ctx.beginPath(); ctx.arc(x,y,1.6+(i%3)*0.7,0,TAU); ctx.fill(); }
+    return; }
+}
+
 function hud(){
   ctx.font='bold 20px system-ui,sans-serif'; ctx.lineWidth=3.5; ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.fillStyle='#243026';
   ctx.textAlign='left';  ctx.strokeText('🍓 '+Math.floor(score),16,30); ctx.fillText('🍓 '+Math.floor(score),16,30);
@@ -568,7 +604,7 @@ function frame(){
     for(let k=0;k<2;k++){ const rr=34+k*26+((t*2)%26); ctx.globalAlpha=0.55*(1-((rr-34)/60)); ctx.beginPath(); ctx.arc(0,0,rr,0,TAU); ctx.stroke(); }
     ctx.globalAlpha=1; ctx.restore(); }
   drawParticles();
-  foreground(); speedLines();
+  foreground(); speedLines(); drawWeather();
   if(hitFlash>0){ ctx.fillStyle='rgba(229,56,78,'+(hitFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); hitFlash--; }
   if(mileFlash>0){ ctx.fillStyle='rgba(255,245,200,'+(mileFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); }
   hud();
@@ -647,7 +683,7 @@ document.getElementById('pause').onclick=()=>{ if(state==='play') paused=!paused
 document.getElementById('closet').onclick=openCloset;
 document.getElementById('closetClose').onclick=()=>document.getElementById('closetModal').classList.remove('show');
 document.querySelectorAll('.modalTabs .tab').forEach(tb=>tb.onclick=()=>{ closetTab=tb.dataset.tab; document.querySelectorAll('.modalTabs .tab').forEach(x=>x.classList.toggle('on',x===tb)); renderShop(); });
-applyEquip(); initMissions();
+applyEquip(); initMissions(); initWeather();
 const nameEl=document.getElementById('pname'); nameEl.value=pName;
 nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); };
 paintMute();
