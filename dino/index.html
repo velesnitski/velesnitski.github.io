@@ -46,6 +46,7 @@
   <div class="panel">
     <button id="share">📤 Share score</button>
     <button class="alt" id="link">🔗 Game link</button>
+    <button class="alt" id="pause">⏸ Pause</button>
     <button class="alt" id="mute">🔊 Sound</button>
     <button class="alt" id="shades">😎 Shades</button>
     <button class="alt" id="hat">👒 Panama</button>
@@ -211,6 +212,9 @@ const sfxPower=()=>{ beep(700,0.10,'sine',0.06,1250); setTimeout(()=>beep(1050,0
 const sfxShield=()=>{ beep(300,0.20,'square',0.06,110); };
 const sfxDive=()=>{ beep(520,0.12,'sawtooth',0.05,150); };
 const sfxLand=()=>{ beep(130,0.14,'square',0.06,60); };
+const sfxNice=()=>beep(900,0.08,'triangle',0.05,1300);
+const sfxMile=()=>{ beep(700,0.09,'square',0.05,1050); setTimeout(()=>beep(1050,0.11,'square',0.05,1400),80); };
+function vibe(ms){ if(!muted && navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} } }
 
 // ------------------------------------------------ game --
 const cv=document.getElementById('game'), ctx=cv.getContext('2d'), W=760, H=360;
@@ -220,7 +224,7 @@ const groundY=286, dinoX=168, SC=1.02;
 let shadesOn=false, hatOn=false, t=0;
 let state='menu', score=0, hi=+(localStorage.getItem('dinoHi')||0), speed=4;
 let ents=[], spawnT=50, dy=0, vel=0, air=false, hitFlash=0, lastScore=0, challengePassed=false;
-let coyote=0, jumpBuf=0, sq=0, combo=0, comboTimer=0, shake=0, newBest=false, parts=[], pops=[], shield=false, invuln=0, magnet=0, justPlacedIdx=-1, diving=false;
+let coyote=0, jumpBuf=0, sq=0, combo=0, comboTimer=0, shake=0, newBest=false, parts=[], pops=[], shield=false, invuln=0, magnet=0, justPlacedIdx=-1, diving=false, lastMile=0, paused=false, mileFlash=0;
 const P=new URLSearchParams(location.hash.replace(/^#/,''));
 const demo=P.has('demo'), cardMode=P.has('card');
 let challenge=Math.max(0,Math.floor(+P.get('c')||0));
@@ -229,13 +233,14 @@ if(cardMode){ lastScore=248; hi=248; }
 const GAME_URL=location.origin+location.pathname;
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; }
 function start(){ reset(); state='play'; sfxStart(); }
 function over(){ state='over'; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
-  if(newBest){ confetti(); sfxWin(); } }
+  if(newBest){ confetti(); sfxWin(); } vibe(120); }
 function action(){ initAudio();
+  if(paused){ paused=false; return; }
   if(state==='menu') start();
   else if(state==='play') jumpBuf=8;
   else if(state==='over') start(); }
@@ -256,10 +261,11 @@ function update(){
   updateParticles();
   if(demo){ if(!ents.length){ ents=[{k:'bat',x:680,y:groundY-40,f:0},{k:'gold',x:300,y:groundY-104,got:false},{k:'mag',x:224,y:groundY-104,got:false}];
     for(let i=0;i<5;i++){ const f=i/4; ents.push({k:'berry',x:440+i*40,y:groundY-72-Math.sin(f*Math.PI)*72,got:false}); } shield=true; magnet=260; } return; }
-  if(shake>0) shake*=0.86;
+  if(shake>0) shake*=0.86; if(mileFlash>0) mileFlash--;
   if(state!=='play') return;
   speed=Math.min(9.2, speed+0.0016);
   score+=speed*0.02;
+  if(Math.floor(score/100)>lastMile){ lastMile++; mileFlash=14; speed=Math.min(9.2,speed+0.25); pop(lastMile*100+'!',dinoX,groundY+dy-104,'#ffd54a'); sfxMile(); vibe(20); }
   if(comboTimer>0 && --comboTimer===0) combo=0;
   if(challenge>0 && !challengePassed && score>challenge){ challengePassed=true; toast('🔥 Passed '+challenge+'!'); sfxBerry(2); }
   // jump: coyote time + input buffer (forgiving timing)
@@ -280,8 +286,10 @@ function update(){
       else if(e.k==='mag'){ score+=10; magnet=300; goldSparkle(e.x,e.y); sfxPower(); pop('🧲 MAGNET!',dcx,dcy-74,'#4aa3ff'); }
       else { combo++; comboTimer=200; const pts=5*Math.min(combo,5); score+=pts;
         sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300'); sfxBerry(Math.min(combo,6)); } } }
-    else if(e.k==='bat'){ if(invuln<=0 && Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8)){
-      if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; sfxShield(); } else over(); } }
+    else if(e.k==='bat'){
+      if(invuln<=0 && Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8)){
+        if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; sfxShield(); vibe(40); } else over(); }
+      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ score+=3; pop('NICE!',dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); } } }
   }
   ents=ents.filter(e=> e.x>-60 && !e.dead && !((e.k==='berry'||e.k==='gold'||e.k==='mag')&&e.got));
 }
@@ -389,7 +397,7 @@ function bigPanel(topLines, foot){
 function frame(){
   ctx.setTransform(DPR,0,0,DPR,0,0);
   if(cardMode){ ctx.fillStyle='#0e1524'; ctx.fillRect(0,0,W,H); ctx.drawImage(buildCard(),(W-640)/2,0); requestAnimationFrame(frame); return; }
-  update();
+  if(!paused) update();
   if(shake>0.4) ctx.translate((Math.random()*2-1)*shake,(Math.random()*2-1)*shake);
   bg();
   for(const e of ents){ if(e.k==='bat') drawBat(ctx,e.x,e.y, t*0.3+e.f); else drawBerry(ctx,e.x,e.y, e.k); }
@@ -409,13 +417,16 @@ function frame(){
     ctx.globalAlpha=1; ctx.restore(); }
   drawParticles();
   if(hitFlash>0){ ctx.fillStyle='rgba(229,56,78,'+(hitFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); hitFlash--; }
+  if(mileFlash>0){ ctx.fillStyle='rgba(255,245,200,'+(mileFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); }
   hud();
   if(state==='menu'){ const L=[['🍓 Strawberry Dash','bold 24px']];
     L.push(challenge>0?['🔥 Beat '+challenge+'!','bold 17px','#ffd27a']:['🍓 eat · 🦇 dodge · 🌟 gold=shield · 🔵 blue=magnet','500 12px','#cde']);
     bigPanel(L,'Tap / click / Space to play'); }
   if(state==='over'){ const beat=challenge>0 && lastScore>challenge;
-    bigPanel([[newBest?'🎉 NEW BEST! 🎉':(beat?'🎉 You beat '+challenge+'!':'Game Over'),'bold 24px',(newBest||beat)?'#ffe08a':'#fff'],
+    const medal=lastScore>=500?'🥇':lastScore>=250?'🥈':lastScore>=100?'🥉':'';
+    bigPanel([[(medal?medal+' ':'')+(newBest?'NEW BEST!':(beat?'You beat '+challenge+'!':'Game Over')),'bold 24px',(newBest||beat||medal)?'#ffe08a':'#fff'],
       ['Score '+lastScore+' · Best '+hi,'500 16px','#dfe']], 'Tap to retry · 📤 Share below'); }
+  if(paused && state==='play') panel([['⏸ Paused','bold 26px'],['tap to resume · P','bold 15px','#bfe3ff']]);
   requestAnimationFrame(frame);
 }
 
@@ -473,7 +484,7 @@ async function shareLink(){ initAudio();
 const stage=document.getElementById('stage');
 stage.addEventListener('click', action);
 stage.addEventListener('touchstart', e=>{ e.preventDefault(); action(); }, {passive:false});
-addEventListener('keydown', e=>{ if(e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); action(); } });
+addEventListener('keydown', e=>{ if(e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); action(); } else if(e.code==='KeyP'||e.code==='Escape'){ if(state==='play') paused=!paused; } });
 
 const mBtn=document.getElementById('mute'), sBtn=document.getElementById('shades'), hBtn=document.getElementById('hat');
 function paintMute(){ mBtn.textContent=muted?'🔇 Muted':'🔊 Sound'; mBtn.classList.toggle('on',!muted); }
@@ -484,6 +495,7 @@ document.getElementById('cBody').oninput =e=>bodyHex=e.target.value;
 document.getElementById('cPlate').oninput=e=>plateHex=e.target.value;
 document.getElementById('cBelly').oninput=e=>bellyHex=e.target.value;
 document.getElementById('share').onclick=shareResult;
+document.getElementById('pause').onclick=()=>{ if(state==='play') paused=!paused; };
 document.getElementById('link').onclick=shareLink;
 const nameEl=document.getElementById('pname'); nameEl.value=pName;
 nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); };
