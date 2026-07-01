@@ -430,7 +430,7 @@ function missionPanel(){
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
   coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; }
 function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); }
-function over(){ state='over'; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
+function over(){ if(state!=='play') return; state='over'; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
   wallet+=runBerries; saveCloset();
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
@@ -494,7 +494,7 @@ function update(){
       else if(e.k==='mag'){ score+=10; magnet=300; goldSparkle(e.x,e.y); sfxPower(); pop('🧲 MAGNET!',dcx,dcy-74,'#4aa3ff'); missionEvent('magnet',1); }
       else { combo++; comboTimer=tailbowOn?300:200; const pts=5*Math.min(combo,5); score+=pts;
         sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300'); sfxBerry(Math.min(combo,6)); missionEvent('berry',1); missionEvent('combo',combo); } } }
-    else if(e.k==='bat'){
+    else if(e.k==='bat' && !e.dead){
       const hit = Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8);
       if(hit && diving && vel>4){
         e.dead=true; score+=8; combo++; comboTimer=200; hitBurst(e.x,e.y); shieldPop(e.x,e.y);
