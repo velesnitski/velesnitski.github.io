@@ -77,7 +77,7 @@
 
   <div class="modal" id="closetModal"><div class="modalBox">
     <div class="modalHead">🎽 Closet <span id="walletLbl">🍓 0</span> <button id="closetClose">✕</button></div>
-    <div class="modalTabs"><button class="tab on" data-tab="skin">Dinos</button><button class="tab" data-tab="hat">Hats</button><button class="tab" data-tab="gear">Gear</button></div>
+    <div class="modalTabs"><button class="tab on" data-tab="skin">Dinos</button><button class="tab" data-tab="hat">Hats</button><button class="tab" data-tab="gear">Gear</button><button class="tab" data-tab="stats">📊</button></div>
     <div class="shop" id="shop"></div>
   </div></div>
 
@@ -311,6 +311,10 @@ const GAME_URL=location.origin+location.pathname;
 
 // ---------------- meta: berry wallet, closet, daily missions ----------------
 let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0, socksOn=false, rainbow=false, tailbowOn=false, tailspikeOn=false, armourOn=false;
+const STAT0={runs:0,berries:0,bosses:0,jumps:0,dives:0,bestCombo:0,nearMiss:0,best:0};
+let stats=(()=>{ try{ return Object.assign({},STAT0,JSON.parse(localStorage.getItem('dinoStats')||'{}')); }catch(e){ return Object.assign({},STAT0); } })();
+function saveStats(){ localStorage.setItem('dinoStats',JSON.stringify(stats)); }
+let beatBest=false;
 const RARITY={ common:{c:'#9aa7b4',n:'Common'}, rare:{c:'#4a9fe0',n:'Rare'}, epic:{c:'#b06bd8',n:'Epic'}, legendary:{c:'#ffb02e',n:'Legendary'} };
 function hslHex(h,s,l){ h=((h%360)+360)%360/360; const a=s*Math.min(l,1-l); const f=n=>{ const k=(n+h*12)%12; const c=l-a*Math.max(-1,Math.min(k-3,Math.min(9-k,1))); return Math.round(255*c).toString(16).padStart(2,'0'); }; return '#'+f(0)+f(8)+f(4); }
 const SKINS=[
@@ -383,6 +387,12 @@ function missionEvent(type,amount){ if(!missions.length) return; let ch=false;
 let closetTab='skin';
 function renderShop(){ const shop=document.getElementById('shop'); if(!shop) return; shop.innerHTML='';
   document.getElementById('walletLbl').textContent='🍓 '+wallet;
+  if(closetTab==='stats'){
+    const rows=[['🏃','Runs',stats.runs],['🏆','Best score',Math.max(hi,stats.best)],['🍓','Berries banked',stats.berries],['👑','Bosses beaten',stats.bosses],['✨','Best combo','x'+stats.bestCombo],['😎','Near-misses',stats.nearMiss],['⬆️','Jumps',stats.jumps],['⬇️','Dives',stats.dives],['🔥','Day streak',streak+'d']];
+    const wrap=document.createElement('div'); wrap.style.cssText='grid-column:1/-1;display:flex;flex-direction:column;gap:6px;padding:2px 2px 6px';
+    rows.forEach(([ic,k,v])=>{ const r=document.createElement('div'); r.style.cssText='display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:9px 12px';
+      r.innerHTML='<span style="font-size:14px;color:#cfe0ee">'+ic+' '+k+'</span><b style="font-size:16px;color:#ffe08a">'+v+'</b>'; wrap.appendChild(r); });
+    shop.appendChild(wrap); return; }
   const gearTab=(closetTab==='gear');
   const list=closetTab==='skin'?SKINS:closetTab==='hat'?HATS:GEAR, eqKey=closetTab==='skin'?'skin':'hat';
   const gf=()=>({shades:!!equip.gear.shades,socks:!!equip.gear.socks,tailbow:!!equip.gear.tailbow,tailspike:!!equip.gear.tailspike,armour:!!equip.gear.armour});
@@ -431,11 +441,12 @@ function missionPanel(){
 }
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; }
-function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; beatBest=false; }
+function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); stats.runs++; saveStats(); }
 function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
   wallet+=runBerries; saveCloset();
+  stats.berries+=runBerries; if(lastScore>stats.best) stats.best=lastScore; saveStats();
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
   if(newBest){ confetti(); sfxWin(); } vibe(120); }
 function action(){ initAudio();
@@ -471,14 +482,16 @@ function update(){
   speed=Math.min(9.2, speed+0.0016);
   score+=speed*0.02; missionEvent('score',Math.floor(score));
   if(Math.floor(score/100)>lastMile){ lastMile++; mileFlash=14; speed=Math.min(9.2,speed+0.25); pop(lastMile*100+'!',dinoX,groundY+dy-104,'#ffd54a'); sfxMile(); vibe(20); }
+  if(!beatBest && hi>0 && score>hi){ beatBest=true; toast('🏆 New best!'); confetti(); sfxMile(); vibe(30); }
+  if(combo>stats.bestCombo) stats.bestCombo=combo;
   if(comboTimer>0 && --comboTimer===0) combo=0;
   if(!boss && score>=nextBoss) spawnBoss();
   if(challenge>0 && !challengePassed && score>challenge){ challengePassed=true; toast('🔥 Passed '+challenge+'!'); sfxBerry(2); }
   // jump: coyote time + input buffer (forgiving timing)
   if(!air) coyote=6; else if(coyote>0) coyote--;
   if(jumpBuf>0) jumpBuf--;
-  if(jumpBuf>0 && coyote>0 && !air){ vel=socksOn?-17.2:-15.6; air=true; coyote=0; jumpBuf=0; sq=-0.14; sfxJump(); }
-  else if(jumpBuf>0 && air && !diving){ diving=true; vel=Math.max(vel,20); jumpBuf=0; sq=-0.2; sfxDive(); missionEvent('dive',1); }
+  if(jumpBuf>0 && coyote>0 && !air){ vel=socksOn?-17.2:-15.6; air=true; coyote=0; jumpBuf=0; sq=-0.14; sfxJump(); stats.jumps++; }
+  else if(jumpBuf>0 && air && !diving){ diving=true; vel=Math.max(vel,20); jumpBuf=0; sq=-0.2; sfxDive(); missionEvent('dive',1); stats.dives++; }
   if(air){ vel+=0.86; dy+=vel; if(dy>=0){ dy=0; vel=0; air=false;
     if(diving){ diving=false; sq=0.3; diveSlam(dinoX); shake=7; sfxLand();
       if(tailspikeOn){ shake=11; parts.push({ring:1,x:dinoX,y:groundY+2,r:12,vr:10,life:22,c:'rgba(120,225,255,.85)'});
@@ -505,7 +518,7 @@ function update(){
         vel=-13; diving=false; air=true; hitstop=4; shake=9; sfxLand(); pop('SLAM! +8',dinoX,groundY+dy-96,'#ffd54a'); vibe(30); missionEvent('slam',1); missionEvent('combo',combo); }
       else if(hit && invuln<=0){
         if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; sfxShield(); vibe(40); } else over(); }
-      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ const nb=shadesOn?6:3; score+=nb; pop('NICE! +'+nb,dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); missionEvent('nice',1); } } }
+      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ const nb=shadesOn?6:3; score+=nb; pop('NICE! +'+nb,dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); missionEvent('nice',1); stats.nearMiss++; } } }
     else if(e.k==='rock' && !e.dead){ const top=e.y-(e.tall?26:16);
       if(Math.abs(e.x-dinoX)<26){
         if(diving && vel>2){ e.dead=true; score+=6; combo++; comboTimer=tailbowOn?300:200; hitBurst(e.x,e.y); shieldPop(e.x,e.y); vel=-11; diving=false; air=true; hitstop=3; shake=9; pop('SMASH! +6',dinoX,groundY+dy-96,'#ffd54a'); sfxLand(); vibe(30); }
@@ -523,7 +536,7 @@ function spawnBoss(){ bossCount++;
   toast((mega?'👑 MEGA BOSS':(hp===2?'⚡ QUICK BOSS':(worm?'🪱 WORM BOSS':'🦇 BOSS')))+'! '+(worm?'bop its head '+hp+'×':'jump on it '+hp+'×')); }
 function endBoss(){ nextBoss=Math.floor(score)+Math.max(320, 560-bossCount*40); }
 function bossHit(b){ b.hp--; b.inv=40; vel=-13; diving=false; air=true; hitstop=5; shake=12; hitBurst(b.hx||b.x,b.hy||b.y); shieldPop(b.hx||b.x,b.hy||b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
-  if(b.hp<=0){ b.phase='defeat'; b.pt=0; const rw=b.mega?80:30; score+=b.mega?120:50; wallet+=rw; saveCloset(); endBoss(); confetti(); sfxWin(); toast(b.mega?'🏆 CHAMPION! +'+rw+' 🍓':'💥 BOSS DOWN! +'+rw+' 🍓'); vibe(120); } }
+  if(b.hp<=0){ b.phase='defeat'; b.pt=0; const rw=b.mega?80:30; score+=b.mega?120:50; wallet+=rw; saveCloset(); stats.bosses++; saveStats(); endBoss(); confetti(); sfxWin(); toast(b.mega?'🏆 CHAMPION! +'+rw+' 🍓':'💥 BOSS DOWN! +'+rw+' 🍓'); vibe(120); } }
 function bossShieldEat(b){ shield=false; invuln=30; b.inv=26; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; sfxShield(); vibe(40); }
 function updateBoss(){ const b=boss; if(b.type==='worm'){ updateWorm(b); return; }
   b.pt++; b.age++; if(b.inv>0) b.inv--;
@@ -782,7 +795,8 @@ function frame(){
     const medal=lastScore>=500?'🥇':lastScore>=250?'🥈':lastScore>=100?'🥉':'';
     bigPanel([[(medal?medal+' ':'')+(newBest?'NEW BEST!':(beat?'You beat '+challenge+'!':'Game Over')),'bold 24px',(newBest||beat||medal)?'#ffe08a':'#fff'],
       ['Score '+lastScore+' · Best '+hi,'500 16px','#dfe'],
-      ['🍓 +'+runBerries+' earned · '+wallet+' saved','500 13px','#ffd27a']], (t-overAt>52?'Tap to retry · ⚔️ Challenge below':'saving score…')); }
+      ['🍓 +'+runBerries+' earned · '+wallet+' saved','500 13px','#ffd27a'],
+      ['🏃 Run #'+stats.runs+' · ✨ best combo x'+stats.bestCombo+' · 📊 stats in Closet','500 11px','#a9bcd0']], (t-overAt>52?'Tap to retry · ⚔️ Challenge below':'saving score…')); }
   if(paused && state==='play') panel([['⏸ Paused','bold 26px'],['tap to resume · P','bold 15px','#bfe3ff']]);
   requestAnimationFrame(frame);
 }
@@ -794,21 +808,40 @@ function toast(msg){ const el=document.getElementById('toast'); el.textContent=m
 
 function buildCard(){
   const c=document.createElement('canvas'); c.width=640; c.height=360; const x=c.getContext('2d');
+  const skin=SKINS.find(s=>s.id===equip.skin)||SKINS[0];
+  const glow=(RARITY[skin.rarity]||RARITY.common).c;
   const g=x.createLinearGradient(0,0,0,360); g.addColorStop(0,'#bfe0f2'); g.addColorStop(.6,'#d7ecdf'); g.addColorStop(1,'#c2d6cf');
   x.fillStyle=g; x.fillRect(0,0,640,360);
-  x.fillStyle='#ffe27a'; x.beginPath(); x.arc(566,60,28,0,TAU); x.fill();
-  x.fillStyle='rgba(255,255,255,.85)'; [[120,66],[430,48]].forEach(([cx,cy])=>{ x.beginPath(); x.ellipse(cx,cy,32,19,0,0,TAU); x.ellipse(cx+24,cy+6,21,13,0,0,TAU); x.fill(); });
-  x.fillStyle='#a9d6ba'; x.beginPath(); x.moveTo(0,360); for(let i=0;i<=640;i+=10) x.lineTo(i,252+Math.sin(i*0.02)*15); x.lineTo(640,360); x.fill();
-  x.fillStyle='#e7d3a0'; x.fillRect(0,302,640,58); x.strokeStyle='#c9ad6a'; x.lineWidth=4; x.beginPath(); x.moveTo(0,302); x.lineTo(640,302); x.stroke();
-  drawBerry(x,258,132); drawBerry(x,224,176); drawBat(x,470,116,1.2);
-  drawDino(x,150,300,1.18,{t:12, flip:true, walk:false, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, hat:hatOn, open:1});
+  x.fillStyle='#ffe27a'; x.beginPath(); x.arc(590,50,25,0,TAU); x.fill();
+  x.fillStyle='rgba(255,255,255,.82)'; [[300,40],[470,58]].forEach(([cx,cy])=>{ x.beginPath(); x.ellipse(cx,cy,30,17,0,0,TAU); x.ellipse(cx+22,cy+6,19,12,0,0,TAU); x.fill(); });
+  x.fillStyle='#a9d6ba'; x.beginPath(); x.moveTo(0,360); for(let i=0;i<=640;i+=10) x.lineTo(i,262+Math.sin(i*0.02)*13); x.lineTo(640,360); x.fill();
+  x.fillStyle='#e7d3a0'; x.fillRect(0,308,640,52); x.strokeStyle='#c9ad6a'; x.lineWidth=4; x.beginPath(); x.moveTo(0,308); x.lineTo(640,308); x.stroke();
+  // ---- hero dino, spotlit, showing off its outfit ----
+  const cx=178, base=306;
+  const sp=x.createRadialGradient(cx,150,8,cx,196,190); sp.addColorStop(0,glow+'55'); sp.addColorStop(.6,glow+'1e'); sp.addColorStop(1,glow+'00');
+  x.fillStyle=sp; x.fillRect(0,0,372,340);
+  x.fillStyle='rgba(0,0,0,.15)'; x.beginPath(); x.ellipse(cx,base+3,98,17,0,0,TAU); x.fill();
+  drawBerry(x,300,150); drawBerry(x,58,176);
+  drawDino(x,cx,base,1.44,{t:12, flip:true, walk:false, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, hat:hatOn, open:1});
+  // ---- right column ----
   x.textAlign='left';
-  x.fillStyle='#26383f'; x.font='bold 22px system-ui,sans-serif'; x.fillText('🍓 Strawberry Dash', 316, 58);
-  x.fillStyle='#1f6d4f'; x.font='bold 20px system-ui,sans-serif'; x.fillText(pName? pName.toUpperCase() : 'MY SCORE', 318, 116);
-  x.fillStyle='#e5384e'; x.font='bold 82px system-ui,sans-serif'; x.fillText(String(lastScore||hi), 316, 198);
-  x.fillStyle='#26383f'; x.font='bold 22px system-ui,sans-serif'; x.fillText('Best '+hi, 318, 234);
-  x.fillStyle='#3a4a50'; x.font='600 17px system-ui,sans-serif'; x.fillText('Can you beat me? 👉', 318, 272);
-  x.fillStyle='#2b6cff'; x.font='bold 16px system-ui,sans-serif'; x.fillText('velesnitski.github.io/dino', 318, 320);
+  x.fillStyle='#26383f'; x.font='bold 21px system-ui,sans-serif'; x.fillText('🍓 Strawberry Dash', 332, 44);
+  x.fillStyle='#1f6d4f'; x.font='bold 20px system-ui,sans-serif'; x.fillText((pName||'My dino').toUpperCase(), 334, 80);
+  // outfit chips (skin + hat + gear), coloured by rarity
+  const chips=[{t:skin.name,r:skin.rarity}];
+  const hat=HATS.find(h=>h.id===equip.hat); if(hat && hat.id!=='none') chips.push({t:hat.name,r:hat.rarity});
+  GEAR.forEach(gi=>{ if(equip.gear && equip.gear[gi.id]) chips.push({t:gi.name,r:gi.rarity}); });
+  x.font='bold 12px system-ui,sans-serif'; let px=334, py=94;
+  chips.slice(0,6).forEach(ch=>{ const w=x.measureText(ch.t).width+18; if(px+w>630){ px=334; py+=25; }
+    const col=(RARITY[ch.r]||RARITY.common).c;
+    x.beginPath(); x.roundRect(px,py,w,20,10); x.fillStyle=col+'26'; x.fill(); x.strokeStyle=col; x.lineWidth=1.5; x.stroke();
+    x.fillStyle='#1f2f39'; x.fillText(ch.t, px+9, py+14); px+=w+7; });
+  // score
+  x.fillStyle='#e5384e'; x.font='bold 74px system-ui,sans-serif'; x.fillText(String(lastScore||hi), 332, 228);
+  x.fillStyle='#26383f'; x.font='bold 20px system-ui,sans-serif'; x.fillText('Best '+hi, 334, 256);
+  x.fillStyle='#3a4a50'; x.font='600 16px system-ui,sans-serif'; x.fillText('Can you beat my dino? 👉', 334, 284);
+  x.fillStyle='#2b6cff'; x.font='bold 16px system-ui,sans-serif'; x.fillText('velesnitski.github.io/dino', 334, 320);
+  x.strokeStyle='rgba(30,50,60,.18)'; x.lineWidth=2; x.strokeRect(1,1,638,358);
   return c;
 }
 
@@ -850,6 +883,7 @@ mBtn.onclick=()=>{ muted=!muted; localStorage.setItem('dinoMute',muted?'1':'0');
 document.getElementById('share').onclick=shareResult;
 document.getElementById('challenge').onclick=shareChallenge;
 document.getElementById('pause').onclick=()=>{ if(state==='play') paused=!paused; };
+document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==='play') paused=true; });
 document.getElementById('closet').onclick=openCloset;
 document.getElementById('closetClose').onclick=()=>document.getElementById('closetModal').classList.remove('show');
 document.querySelectorAll('.modalTabs .tab').forEach(tb=>tb.onclick=()=>{ closetTab=tb.dataset.tab; document.querySelectorAll('.modalTabs .tab').forEach(x=>x.classList.toggle('on',x===tb)); renderShop(); });
