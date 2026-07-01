@@ -75,7 +75,7 @@
 
   <div class="modal" id="closetModal"><div class="modalBox">
     <div class="modalHead">🎽 Closet <span id="walletLbl">🍓 0</span> <button id="closetClose">✕</button></div>
-    <div class="modalTabs"><button class="tab on" data-tab="skin">Dinos</button><button class="tab" data-tab="hat">Hats</button><button class="tab" data-tab="acc">Extras</button></div>
+    <div class="modalTabs"><button class="tab on" data-tab="skin">Dinos</button><button class="tab" data-tab="hat">Hats</button><button class="tab" data-tab="gear">Gear</button></div>
     <div class="shop" id="shop"></div>
   </div></div>
 
@@ -198,6 +198,20 @@ function drawDino(ctx, cx, footY, s, o){
     ctx.fillStyle='#e5384e'; for(let i=0;i<3;i++) ctx.fillRect(L.fx-12,L.fy-6+i*7,36,3);
     ctx.restore();
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.5; ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,10,0,0,TAU); ctx.stroke(); }); }
+  if(o.armour){ ctx.save(); ctx.beginPath(); ctx.ellipse(2,-66,46,43,0,0,TAU); ctx.clip();
+    const ag=ctx.createLinearGradient(0,-96,0,-34); ag.addColorStop(0,'#dbe1ea'); ag.addColorStop(1,'#8790a2');
+    ctx.beginPath(); ctx.ellipse(14,-58,30,36,0,0,TAU); ctx.fillStyle=ag; ctx.fill(); ctx.strokeStyle='#5f6a7c'; ctx.lineWidth=2.4; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(14,-90); ctx.lineTo(14,-24); ctx.stroke();
+    ctx.fillStyle='#5f6a7c'; [[4,-74],[24,-74],[4,-44],[24,-44]].forEach(([rx,ry])=>{ ctx.beginPath(); ctx.arc(rx,ry,2.4,0,TAU); ctx.fill(); });
+    ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(4,-72,6,13,-.3,0,TAU); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.ellipse(-16,-92,15,12,0,0,TAU); ctx.lineJoin='round'; ctx.lineWidth=6; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle='#b9c1cd'; ctx.fill(); }
+  if(o.tailspike){ const sx=-90,sy=-94; ctx.strokeStyle='#7d8794'; ctx.lineWidth=4; ctx.lineCap='round';
+    for(let a=0;a<8;a++){ const an=a/8*TAU; ctx.beginPath(); ctx.moveTo(sx+Math.cos(an)*5,sy+Math.sin(an)*5); ctx.lineTo(sx+Math.cos(an)*12,sy+Math.sin(an)*12); ctx.stroke(); }
+    ctx.fillStyle='#aab3c0'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx,sy,8,0,TAU); ctx.fill(); ctx.stroke(); }
+  if(o.tailbow){ const bx=-70,by=-90; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.lineJoin='round'; ctx.fillStyle='#ff5c8a';
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-15,by-10); ctx.lineTo(bx-15,by+10); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+15,by-10); ctx.lineTo(bx+15,by+10); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.arc(bx,by,4.5,0,TAU); ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=OUTLINE; ctx.stroke(); }
 
   ctx.restore();
 }
@@ -279,7 +293,7 @@ if(cardMode){ lastScore=248; hi=248; }
 const GAME_URL=location.origin+location.pathname;
 
 // ---------------- meta: berry wallet, closet, daily missions ----------------
-let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0, socksOn=false, rainbow=false;
+let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0, socksOn=false, rainbow=false, tailbowOn=false, tailspikeOn=false, armourOn=false;
 const RARITY={ common:{c:'#9aa7b4',n:'Common'}, rare:{c:'#4a9fe0',n:'Rare'}, epic:{c:'#b06bd8',n:'Epic'}, legendary:{c:'#ffb02e',n:'Legendary'} };
 function hslHex(h,s,l){ h=((h%360)+360)%360/360; const a=s*Math.min(l,1-l); const f=n=>{ const k=(n+h*12)%12; const c=l-a*Math.max(-1,Math.min(k-3,Math.min(9-k,1))); return Math.round(255*c).toString(16).padStart(2,'0'); }; return '#'+f(0)+f(8)+f(4); }
 const SKINS=[
@@ -293,14 +307,22 @@ const SKINS=[
   {id:'rainbow',name:'Rainbow',price:300,rarity:'legendary',body:'#ff6ec7', plate:'#ffd166', belly:'#fff0f6'}
 ];
 const HATS=[{id:'none',name:'None',price:0,rarity:'common'},{id:'panama',name:'Panama',price:20,rarity:'common'},{id:'party',name:'Party',price:35,rarity:'rare'},{id:'crown',name:'Crown',price:150,rarity:'epic'}];
-const ACCS=[{id:'noacc',name:'None',price:0,rarity:'common'},{id:'shades',name:'Shades',price:30,rarity:'rare'},{id:'socks',name:'Socks',price:200,rarity:'legendary'}];
+const GEAR=[
+  {id:'shades',   name:'Shades',    price:30,  rarity:'rare',      perk:'2× near-miss'},
+  {id:'tailbow',  name:'Tail Bow',  price:45,  rarity:'rare',      perk:'longer combos'},
+  {id:'tailspike',name:'Tail Spike',price:90,  rarity:'epic',      perk:'slam shockwave'},
+  {id:'socks',    name:'Socks',     price:200, rarity:'legendary', perk:'higher jump'},
+  {id:'armour',   name:'Armour',    price:250, rarity:'legendary', perk:'start with shield'}
+];
 let owned, equip;
 try{ owned=JSON.parse(localStorage.getItem('dinoOwned')); }catch(e){}
 if(!Array.isArray(owned)) owned=['rex','none','noacc'];
 try{ equip=JSON.parse(localStorage.getItem('dinoEquip')); }catch(e){}
-if(!equip||!equip.skin) equip={skin:'rex',hat:'none',acc:'noacc'};
+if(!equip||!equip.skin) equip={skin:'rex',hat:'none',gear:{}};
+if(!equip.gear){ equip.gear={}; if(equip.acc==='shades') equip.gear.shades=true; if(equip.acc==='socks') equip.gear.socks=true; }
 function saveCloset(){ localStorage.setItem('dinoWallet',wallet); localStorage.setItem('dinoOwned',JSON.stringify(owned)); localStorage.setItem('dinoEquip',JSON.stringify(equip)); }
-function applyEquip(){ const s=SKINS.find(x=>x.id===equip.skin)||SKINS[0]; bodyHex=s.body; plateHex=s.plate; bellyHex=s.belly; hatOn=equip.hat; shadesOn=(equip.acc==='shades'); socksOn=(equip.acc==='socks'); rainbow=(equip.skin==='rainbow'); }
+function applyEquip(){ const s=SKINS.find(x=>x.id===equip.skin)||SKINS[0]; bodyHex=s.body; plateHex=s.plate; bellyHex=s.belly; hatOn=equip.hat;
+  const g=equip.gear||{}; shadesOn=!!g.shades; socksOn=!!g.socks; tailbowOn=!!g.tailbow; tailspikeOn=!!g.tailspike; armourOn=!!g.armour; rainbow=(equip.skin==='rainbow'); }
 
 function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
 function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -344,23 +366,29 @@ function missionEvent(type,amount){ if(!missions.length) return; let ch=false;
 let closetTab='skin';
 function renderShop(){ const shop=document.getElementById('shop'); if(!shop) return; shop.innerHTML='';
   document.getElementById('walletLbl').textContent='🍓 '+wallet;
-  const list=closetTab==='skin'?SKINS:closetTab==='hat'?HATS:ACCS, eqKey=closetTab==='skin'?'skin':closetTab==='hat'?'hat':'acc';
-  list.forEach(it=>{ const have=owned.includes(it.id), on=equip[eqKey]===it.id;
+  const gearTab=(closetTab==='gear');
+  const list=closetTab==='skin'?SKINS:closetTab==='hat'?HATS:GEAR, eqKey=closetTab==='skin'?'skin':'hat';
+  const gf=()=>({shades:!!equip.gear.shades,socks:!!equip.gear.socks,tailbow:!!equip.gear.tailbow,tailspike:!!equip.gear.tailspike,armour:!!equip.gear.armour});
+  list.forEach(it=>{ const have=owned.includes(it.id), on=gearTab?!!equip.gear[it.id]:equip[eqKey]===it.id;
     const card=document.createElement('div'); card.className='card'+(it.rarity==='legendary'?' leg':'');
     const R=RARITY[it.rarity]||RARITY.common; card.style.border='2px solid '+R.c;
     const rr=document.createElement('div'); rr.className='rar'; rr.textContent=R.n; rr.style.color=R.c; card.appendChild(rr);
     const pc=document.createElement('canvas'); pc.width=90; pc.height=80; card.appendChild(pc);
     const nm=document.createElement('div'); nm.className='cName'; nm.textContent=it.name; card.appendChild(nm);
+    if(gearTab && it.perk){ const pk=document.createElement('div'); pk.style.cssText='font-size:9px;color:#7fd6a0;font-weight:600;margin-bottom:4px'; pk.textContent='✦ '+it.perk; card.appendChild(pk); }
     const btn=document.createElement('button');
     if(on){ btn.textContent='Worn'; btn.className='eq'; }
     else if(have){ btn.textContent='Wear'; }
-    else if(wallet>=it.price){ btn.textContent='🍓 '+it.price; }
-    else { btn.textContent='🍓 '+it.price; btn.className='no'; }
-    btn.onclick=()=>{ if(on) return; if(!have){ if(wallet<it.price) return; wallet-=it.price; owned.push(it.id); } equip[eqKey]=it.id; applyEquip(); saveCloset(); renderShop(); };
+    else { btn.textContent='🍓 '+it.price; if(wallet<it.price) btn.className='no'; }
+    btn.onclick=()=>{
+      if(gearTab){ if(!have){ if(wallet<it.price) return; wallet-=it.price; owned.push(it.id); equip.gear[it.id]=true; } else equip.gear[it.id]=!equip.gear[it.id]; }
+      else { if(on) return; if(!have){ if(wallet<it.price) return; wallet-=it.price; owned.push(it.id); } equip[eqKey]=it.id; }
+      applyEquip(); saveCloset(); renderShop(); };
     card.appendChild(btn); shop.appendChild(card);
     const px=pc.getContext('2d'), sv={b:bodyHex,p:plateHex,be:bellyHex};
     if(closetTab==='skin'){ bodyHex=it.body; plateHex=it.plate; bellyHex=it.belly; }
-    drawDino(px,46,74,0.32,{t:8,flip:true,hat:(closetTab==='hat'?it.id:equip.hat),shades:(closetTab==='acc'?(it.id==='shades'):(equip.acc==='shades')),socks:(closetTab==='acc'?(it.id==='socks'):(equip.acc==='socks')),open:1});
+    const g=gearTab?Object.assign(gf(),{[it.id]:true}):gf();
+    drawDino(px,46,74,0.32,{t:8,flip:true,hat:(closetTab==='hat'?it.id:equip.hat),shades:g.shades,socks:g.socks,tailbow:g.tailbow,tailspike:g.tailspike,armour:g.armour,open:1});
     bodyHex=sv.b; plateHex=sv.p; bellyHex=sv.be;
   });
 }
@@ -387,7 +415,7 @@ function missionPanel(){
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
   coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; }
-function start(){ reset(); state='play'; sfxStart(); }
+function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); }
 function over(){ state='over'; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
   wallet+=runBerries; saveCloset();
@@ -425,15 +453,17 @@ function update(){
   score+=speed*0.02; missionEvent('score',Math.floor(score));
   if(Math.floor(score/100)>lastMile){ lastMile++; mileFlash=14; speed=Math.min(9.2,speed+0.25); pop(lastMile*100+'!',dinoX,groundY+dy-104,'#ffd54a'); sfxMile(); vibe(20); }
   if(comboTimer>0 && --comboTimer===0) combo=0;
-  if(!boss && score>=nextBoss){ boss={x:W+90,y:groundY-118,hy:groundY-118,hp:3,phase:'enter',pt:0,inv:0,age:0}; toast('🦇 BOSS BAT! dive-slam it 3×'); }
+  if(!boss && score>=nextBoss){ boss={x:W+90,y:groundY-118,hy:groundY-118,hp:3,phase:'enter',pt:0,inv:0,age:0}; toast('🦇 BOSS BAT! jump on it 3×!'); }
   if(challenge>0 && !challengePassed && score>challenge){ challengePassed=true; toast('🔥 Passed '+challenge+'!'); sfxBerry(2); }
   // jump: coyote time + input buffer (forgiving timing)
   if(!air) coyote=6; else if(coyote>0) coyote--;
   if(jumpBuf>0) jumpBuf--;
-  if(jumpBuf>0 && coyote>0 && !air){ vel=-15.6; air=true; coyote=0; jumpBuf=0; sq=-0.14; sfxJump(); }
+  if(jumpBuf>0 && coyote>0 && !air){ vel=socksOn?-17.2:-15.6; air=true; coyote=0; jumpBuf=0; sq=-0.14; sfxJump(); }
   else if(jumpBuf>0 && air && !diving){ diving=true; vel=Math.max(vel,20); jumpBuf=0; sq=-0.2; sfxDive(); missionEvent('dive',1); }
   if(air){ vel+=0.86; dy+=vel; if(dy>=0){ dy=0; vel=0; air=false;
-    if(diving){ diving=false; sq=0.3; diveSlam(dinoX); shake=7; sfxLand(); } else { sq=0.22; dust(dinoX); } } }
+    if(diving){ diving=false; sq=0.3; diveSlam(dinoX); shake=7; sfxLand();
+      if(tailspikeOn){ for(const e of ents){ if(e.k==='bat' && !e.dead && Math.abs(e.x-dinoX)<92 && e.y>groundY-72){ e.dead=true; score+=5; combo++; hitBurst(e.x,e.y); } } } }
+    else { sq=0.22; dust(dinoX); } } }
   if(!boss){ spawnT--; if(spawnT<=0) spawnT=spawn(); }
   if(invuln>0) invuln--; if(magnet>0) magnet--;
   const dcx=dinoX, dcy=groundY+dy-64;
@@ -445,7 +475,7 @@ function update(){
       if(e.k==='gold'){ score+=15; goldSparkle(e.x,e.y); sfxPower();
         if(!shield){ shield=true; pop('🛡 SHIELD!',dcx,dcy-74,'#39d0ff'); } else pop('+15',e.x,e.y-10,'#ffcf3a'); missionEvent('shield',1); }
       else if(e.k==='mag'){ score+=10; magnet=300; goldSparkle(e.x,e.y); sfxPower(); pop('🧲 MAGNET!',dcx,dcy-74,'#4aa3ff'); missionEvent('magnet',1); }
-      else { combo++; comboTimer=200; const pts=5*Math.min(combo,5); score+=pts;
+      else { combo++; comboTimer=tailbowOn?300:200; const pts=5*Math.min(combo,5); score+=pts;
         sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300'); sfxBerry(Math.min(combo,6)); missionEvent('berry',1); missionEvent('combo',combo); } } }
     else if(e.k==='bat'){
       const hit = Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8);
@@ -454,7 +484,7 @@ function update(){
         vel=-13; diving=false; air=true; hitstop=4; shake=9; sfxLand(); pop('SLAM! +8',dinoX,groundY+dy-96,'#ffd54a'); vibe(30); missionEvent('slam',1); missionEvent('combo',combo); }
       else if(hit && invuln<=0){
         if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; sfxShield(); vibe(40); } else over(); }
-      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ score+=3; pop('NICE!',dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); missionEvent('nice',1); } } }
+      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ const nb=shadesOn?6:3; score+=nb; pop('NICE! +'+nb,dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); missionEvent('nice',1); } } }
   }
   ents=ents.filter(e=> e.x>-60 && !e.dead && !((e.k==='berry'||e.k==='gold'||e.k==='mag')&&e.got));
   if(boss) updateBoss();
@@ -462,20 +492,21 @@ function update(){
 function updateBoss(){ const b=boss; b.pt++; b.age++; if(b.inv>0) b.inv--;
   if(b.phase==='enter'){ b.x+=(W-140-b.x)*0.06; b.y=b.hy+Math.sin(b.age*0.1)*8; if(b.x<W-138){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='hover'){ b.x=W-140; b.y=b.hy+Math.sin(b.age*0.1)*8;
-    if(b.pt>60){ b.phase='wind'; b.pt=0; } if(b.age>1600){ b.phase='flee'; nextBoss=Math.floor(score)+500; } }
-  else if(b.phase==='wind'){ b.y=b.hy-Math.min(22,b.pt*2); if(b.pt>14){ b.phase='swoop'; b.pt=0; b.sx=b.x; } }
-  else if(b.phase==='swoop'){ const k=Math.min(1,b.pt/46), s=Math.sin(k*Math.PI); b.x=b.sx+(dinoX+30-b.sx)*s; b.y=(b.hy-22)+((groundY-32)-(b.hy-22))*s; if(b.pt>46){ b.phase='hover'; b.pt=0; } }
+    if(b.pt>80){ b.phase='wind'; b.pt=0; } if(b.age>1800){ b.phase='flee'; nextBoss=Math.floor(score)+500; } }
+  else if(b.phase==='wind'){ b.y=b.hy-Math.min(24,b.pt*1.4); if(b.pt>26){ b.phase='swoop'; b.pt=0; b.sx=b.x; } }
+  else if(b.phase==='swoop'){ const k=Math.min(1,b.pt/58), s=Math.sin(k*Math.PI); b.x=b.sx+(dinoX+30-b.sx)*s; b.y=(b.hy-24)+((groundY-34)-(b.hy-24))*s; if(b.pt>58){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='defeat'||b.phase==='flee'){ b.y-=6; b.x+=3; if(b.y<-90) boss=null; return; }
-  if(b.inv<=0 && Math.abs(b.x-dinoX)<38 && Math.abs((groundY+dy-60)-b.y)<44){
-    if(diving && vel>4){ b.hp--; b.inv=32; vel=-13; diving=false; air=true; hitstop=5; shake=11; hitBurst(b.x,b.y); shieldPop(b.x,b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
+  if(b.inv<=0 && Math.abs(b.x-dinoX)<40 && Math.abs((groundY+dy-58)-b.y)<48){
+    if(air){ b.hp--; b.inv=38; vel=-13; diving=false; air=true; hitstop=5; shake=11; hitBurst(b.x,b.y); shieldPop(b.x,b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
       if(b.hp<=0){ b.phase='defeat'; b.pt=0; score+=50; wallet+=30; runBerries+=30; nextBoss=Math.floor(score)+500; confetti(); sfxWin(); toast('💥 BOSS DOWN! +30 🍓'); vibe(120); } }
-    else if(shield){ shield=false; invuln=30; b.inv=24; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; sfxShield(); vibe(40); }
+    else if(shield){ shield=false; invuln=30; b.inv=26; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; sfxShield(); vibe(40); }
     else over(); }
 }
 function drawBoss(){ const b=boss;
   if(!(b.inv>0 && Math.floor(t/3)%2===0)) drawBat(ctx,b.x,b.y,t*0.5,2.3,true);
   ctx.textAlign='center'; ctx.font='15px system-ui,sans-serif'; let s='';
   for(let i=0;i<3;i++) s+= i<b.hp?'❤️':'🖤'; ctx.fillText(s, b.x, b.y-44);
+  if(b.phase==='wind'){ ctx.font='22px system-ui,sans-serif'; ctx.fillText('❗', b.x, b.y-66); }
 }
 
 // ---- particles + score popups (juice) ----
@@ -636,7 +667,7 @@ function frame(){
   const flashing = invuln>0 && Math.floor(t/3)%2===0;
   if(flashing) ctx.globalAlpha=0.4;
   if(rainbow){ bodyHex=hslHex(t*2,0.62,0.6); plateHex=hslHex(t*2+50,0.55,0.75); }
-  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, hat:hatOn, open:(state==='over'?0:blink), sx:1+sq*0.6, sy:1-sq});
+  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, hat:hatOn, open:(state==='over'?0:blink), sx:1+sq*0.6, sy:1-sq});
   ctx.globalAlpha=1;
   if(shield){ const pu=1+Math.sin(t*0.18)*0.03;
     ctx.save(); ctx.translate(dinoX-4, groundY+dy-92); ctx.scale(pu,pu);
@@ -677,7 +708,7 @@ function buildCard(){
   x.fillStyle='#a9d6ba'; x.beginPath(); x.moveTo(0,360); for(let i=0;i<=640;i+=10) x.lineTo(i,252+Math.sin(i*0.02)*15); x.lineTo(640,360); x.fill();
   x.fillStyle='#e7d3a0'; x.fillRect(0,302,640,58); x.strokeStyle='#c9ad6a'; x.lineWidth=4; x.beginPath(); x.moveTo(0,302); x.lineTo(640,302); x.stroke();
   drawBerry(x,258,132); drawBerry(x,224,176); drawBat(x,470,116,1.2);
-  drawDino(x,150,300,1.18,{t:12, flip:true, walk:false, shades:shadesOn, hat:hatOn, open:1});
+  drawDino(x,150,300,1.18,{t:12, flip:true, walk:false, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, hat:hatOn, open:1});
   x.textAlign='left';
   x.fillStyle='#26383f'; x.font='bold 22px system-ui,sans-serif'; x.fillText('🍓 Strawberry Dash', 316, 58);
   x.fillStyle='#1f6d4f'; x.font='bold 20px system-ui,sans-serif'; x.fillText(pName? pName.toUpperCase() : 'MY SCORE', 318, 116);
@@ -734,9 +765,9 @@ nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dino
 paintMute();
 if(demo) state='play';
 if(P.has('fx')){ confetti(); sparkle(320,180); pop('+25',320,168,'#e5384e'); pop('x5',258,120,'#ffb300'); }
-if(P.has('closet')){ if(P.has('rich')){ wallet=800; } openCloset(); }
+if(P.has('closet')){ if(P.has('rich')){ wallet=800; } openCloset(); const tb=P.get('tab'); if(tb){ closetTab=tb; document.querySelectorAll('.modalTabs .tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===tb)); renderShop(); } }
 if(P.get('wear')){ equip.hat=P.get('wear'); applyEquip(); }
-if(P.get('acc')){ equip.acc=P.get('acc'); applyEquip(); }
+if(P.get('gear')){ if(!equip.gear) equip.gear={}; P.get('gear').split(',').forEach(id=>equip.gear[id]=true); applyEquip(); }
 if(P.get('skin')){ equip.skin=P.get('skin'); applyEquip(); }
 if(P.has('boss')){ state='play'; boss={x:600,y:groundY-110,hy:groundY-110,hp:3,phase:'hover',pt:0,inv:0,age:0}; }
 if(P.has('seed')) localStorage.setItem('dinoBoard', JSON.stringify([{name:'MILA',score:412},{name:'LEO',score:388},{name:'you',score:240},{name:'MILA',score:150},{name:'LEO',score:96}]));
