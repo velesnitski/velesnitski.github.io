@@ -240,8 +240,9 @@ function drawBat(ctx,x,y,ph,scale,boss){ ctx.save(); ctx.translate(x,y); if(scal
 
 // ------------------------------------------------ audio (synth) --
 let AC=null, muted=(localStorage.getItem('dinoMute')==='1');
-function initAudio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} }
-  if(AC&&AC.state==='suspended') AC.resume(); }
+function initAudio(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; } }
+  if(AC.state==='suspended') AC.resume();
+  if(!AC._unlocked){ try{ const b=AC.createBuffer(1,1,22050), s=AC.createBufferSource(); s.buffer=b; s.connect(AC.destination); s.start(0); AC._unlocked=true; }catch(e){} } }
 function beep(f,dur,type,vol,to){ if(!AC||muted) return; const o=AC.createOscillator(), g=AC.createGain();
   o.type=type; o.frequency.setValueAtTime(f,AC.currentTime);
   if(to) o.frequency.exponentialRampToValueAtTime(to,AC.currentTime+dur);
