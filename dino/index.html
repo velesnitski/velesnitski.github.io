@@ -51,6 +51,9 @@
   .card button{width:100%;background:#2b6cff;border:0;color:#fff;padding:6px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700}
   .card button.eq{background:#22a05a}
   .card button.no{background:#3a4150;color:#8894a3;cursor:not-allowed}
+  .card .rar{font-size:10px;font-weight:800;letter-spacing:.3px;margin-bottom:3px;text-transform:uppercase}
+  .card.leg{animation:legpulse 1.6s ease-in-out infinite}
+  @keyframes legpulse{0%,100%{box-shadow:0 0 2px rgba(255,176,46,.3)}50%{box-shadow:0 0 16px rgba(255,176,46,.9)}}
 </style>
 </head>
 <body>
@@ -189,6 +192,12 @@ function drawDino(ctx, cx, footY, s, o){
 
   ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.lineCap='round';
   legs.filter(L=>!L.far).forEach(L=>{ for(let d=-1;d<=1;d+=2){ ctx.beginPath(); ctx.moveTo(L.fx+d*5,L.fy-2); ctx.lineTo(L.fx+d*5,L.fy+7); ctx.stroke(); } });
+  if(o.socks){ legs.filter(L=>!L.far).forEach(L=>{ ctx.save();
+    ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,10,0,0,TAU); ctx.clip();
+    ctx.fillStyle='#fff'; ctx.fillRect(L.fx-12,L.fy-13,36,27);
+    ctx.fillStyle='#e5384e'; for(let i=0;i<3;i++) ctx.fillRect(L.fx-12,L.fy-6+i*7,36,3);
+    ctx.restore();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.5; ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,10,0,0,TAU); ctx.stroke(); }); }
 
   ctx.restore();
 }
@@ -269,25 +278,28 @@ if(cardMode){ lastScore=248; hi=248; }
 const GAME_URL=location.origin+location.pathname;
 
 // ---------------- meta: berry wallet, closet, daily missions ----------------
-let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0;
+let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0, socksOn=false, rainbow=false;
+const RARITY={ common:{c:'#9aa7b4',n:'Common'}, rare:{c:'#4a9fe0',n:'Rare'}, epic:{c:'#b06bd8',n:'Epic'}, legendary:{c:'#ffb02e',n:'Legendary'} };
+function hslHex(h,s,l){ h=((h%360)+360)%360/360; const a=s*Math.min(l,1-l); const f=n=>{ const k=(n+h*12)%12; const c=l-a*Math.max(-1,Math.min(k-3,Math.min(9-k,1))); return Math.round(255*c).toString(16).padStart(2,'0'); }; return '#'+f(0)+f(8)+f(4); }
 const SKINS=[
-  {id:'rex',   name:'Rex',   price:0,   body:'#66b49a', plate:'#9ad1bd', belly:'#f3e6c6'},
-  {id:'mint',  name:'Minty', price:30,  body:'#7fd6b0', plate:'#b8ead6', belly:'#f3e6c6'},
-  {id:'sky',   name:'Sky',   price:40,  body:'#6baede', plate:'#a9d4f5', belly:'#eef3f7'},
-  {id:'rose',  name:'Rosa',  price:50,  body:'#e58fa8', plate:'#f6c2d1', belly:'#fdeef2'},
-  {id:'grape', name:'Grape', price:60,  body:'#9b7fd0', plate:'#c9b6ec', belly:'#efe7fb'},
-  {id:'sun',   name:'Sunny', price:70,  body:'#e6b45a', plate:'#f4d79a', belly:'#fbf1d6'},
-  {id:'shadow',name:'Shadow',price:120, body:'#5a6472', plate:'#8b95a4', belly:'#d7dde6'}
+  {id:'rex',   name:'Rex',    price:0,  rarity:'common',    body:'#66b49a', plate:'#9ad1bd', belly:'#f3e6c6'},
+  {id:'mint',  name:'Minty',  price:30, rarity:'common',    body:'#7fd6b0', plate:'#b8ead6', belly:'#f3e6c6'},
+  {id:'sky',   name:'Sky',    price:40, rarity:'rare',      body:'#6baede', plate:'#a9d4f5', belly:'#eef3f7'},
+  {id:'rose',  name:'Rosa',   price:50, rarity:'rare',      body:'#e58fa8', plate:'#f6c2d1', belly:'#fdeef2'},
+  {id:'grape', name:'Grape',  price:60, rarity:'epic',      body:'#9b7fd0', plate:'#c9b6ec', belly:'#efe7fb'},
+  {id:'sun',   name:'Sunny',  price:70, rarity:'epic',      body:'#e6b45a', plate:'#f4d79a', belly:'#fbf1d6'},
+  {id:'shadow',name:'Shadow', price:120,rarity:'epic',      body:'#5a6472', plate:'#8b95a4', belly:'#d7dde6'},
+  {id:'rainbow',name:'Rainbow',price:300,rarity:'legendary',body:'#ff6ec7', plate:'#ffd166', belly:'#fff0f6'}
 ];
-const HATS=[{id:'none',name:'None',price:0},{id:'panama',name:'Panama',price:20},{id:'party',name:'Party',price:35},{id:'crown',name:'Crown',price:150}];
-const ACCS=[{id:'noacc',name:'None',price:0},{id:'shades',name:'Shades',price:30}];
+const HATS=[{id:'none',name:'None',price:0,rarity:'common'},{id:'panama',name:'Panama',price:20,rarity:'common'},{id:'party',name:'Party',price:35,rarity:'rare'},{id:'crown',name:'Crown',price:150,rarity:'epic'}];
+const ACCS=[{id:'noacc',name:'None',price:0,rarity:'common'},{id:'shades',name:'Shades',price:30,rarity:'rare'},{id:'socks',name:'Socks',price:200,rarity:'legendary'}];
 let owned, equip;
 try{ owned=JSON.parse(localStorage.getItem('dinoOwned')); }catch(e){}
 if(!Array.isArray(owned)) owned=['rex','none','noacc'];
 try{ equip=JSON.parse(localStorage.getItem('dinoEquip')); }catch(e){}
 if(!equip||!equip.skin) equip={skin:'rex',hat:'none',acc:'noacc'};
 function saveCloset(){ localStorage.setItem('dinoWallet',wallet); localStorage.setItem('dinoOwned',JSON.stringify(owned)); localStorage.setItem('dinoEquip',JSON.stringify(equip)); }
-function applyEquip(){ const s=SKINS.find(x=>x.id===equip.skin)||SKINS[0]; bodyHex=s.body; plateHex=s.plate; bellyHex=s.belly; hatOn=equip.hat; shadesOn=(equip.acc==='shades'); }
+function applyEquip(){ const s=SKINS.find(x=>x.id===equip.skin)||SKINS[0]; bodyHex=s.body; plateHex=s.plate; bellyHex=s.belly; hatOn=equip.hat; shadesOn=(equip.acc==='shades'); socksOn=(equip.acc==='socks'); rainbow=(equip.skin==='rainbow'); }
 
 function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
 function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
@@ -333,7 +345,9 @@ function renderShop(){ const shop=document.getElementById('shop'); if(!shop) ret
   document.getElementById('walletLbl').textContent='🍓 '+wallet;
   const list=closetTab==='skin'?SKINS:closetTab==='hat'?HATS:ACCS, eqKey=closetTab==='skin'?'skin':closetTab==='hat'?'hat':'acc';
   list.forEach(it=>{ const have=owned.includes(it.id), on=equip[eqKey]===it.id;
-    const card=document.createElement('div'); card.className='card';
+    const card=document.createElement('div'); card.className='card'+(it.rarity==='legendary'?' leg':'');
+    const R=RARITY[it.rarity]||RARITY.common; card.style.border='2px solid '+R.c;
+    const rr=document.createElement('div'); rr.className='rar'; rr.textContent=R.n; rr.style.color=R.c; card.appendChild(rr);
     const pc=document.createElement('canvas'); pc.width=90; pc.height=80; card.appendChild(pc);
     const nm=document.createElement('div'); nm.className='cName'; nm.textContent=it.name; card.appendChild(nm);
     const btn=document.createElement('button');
@@ -345,7 +359,7 @@ function renderShop(){ const shop=document.getElementById('shop'); if(!shop) ret
     card.appendChild(btn); shop.appendChild(card);
     const px=pc.getContext('2d'), sv={b:bodyHex,p:plateHex,be:bellyHex};
     if(closetTab==='skin'){ bodyHex=it.body; plateHex=it.plate; bellyHex=it.belly; }
-    drawDino(px,46,74,0.32,{t:8,flip:true,hat:(closetTab==='hat'?it.id:equip.hat),shades:(closetTab==='acc'?(it.id==='shades'):(equip.acc==='shades')),open:1});
+    drawDino(px,46,74,0.32,{t:8,flip:true,hat:(closetTab==='hat'?it.id:equip.hat),shades:(closetTab==='acc'?(it.id==='shades'):(equip.acc==='shades')),socks:(closetTab==='acc'?(it.id==='socks'):(equip.acc==='socks')),open:1});
     bodyHex=sv.b; plateHex=sv.p; bellyHex=sv.be;
   });
 }
@@ -620,7 +634,8 @@ function frame(){
   const blink=(t%240)<8?0:1;
   const flashing = invuln>0 && Math.floor(t/3)%2===0;
   if(flashing) ctx.globalAlpha=0.4;
-  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, hat:hatOn, open:(state==='over'?0:blink), sx:1+sq*0.6, sy:1-sq});
+  if(rainbow){ bodyHex=hslHex(t*2,0.62,0.6); plateHex=hslHex(t*2+50,0.55,0.75); }
+  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, hat:hatOn, open:(state==='over'?0:blink), sx:1+sq*0.6, sy:1-sq});
   ctx.globalAlpha=1;
   if(shield){ const pu=1+Math.sin(t*0.18)*0.03;
     ctx.save(); ctx.translate(dinoX-4, groundY+dy-92); ctx.scale(pu,pu);
@@ -720,6 +735,8 @@ if(demo) state='play';
 if(P.has('fx')){ confetti(); sparkle(320,180); pop('+25',320,168,'#e5384e'); pop('x5',258,120,'#ffb300'); }
 if(P.has('closet')){ if(P.has('rich')){ wallet=800; } openCloset(); }
 if(P.get('wear')){ equip.hat=P.get('wear'); applyEquip(); }
+if(P.get('acc')){ equip.acc=P.get('acc'); applyEquip(); }
+if(P.get('skin')){ equip.skin=P.get('skin'); applyEquip(); }
 if(P.has('boss')){ state='play'; boss={x:600,y:groundY-110,hy:groundY-110,hp:3,phase:'hover',pt:0,inv:0,age:0}; }
 if(P.has('seed')) localStorage.setItem('dinoBoard', JSON.stringify([{name:'MILA',score:412},{name:'LEO',score:388},{name:'you',score:240},{name:'MILA',score:150},{name:'LEO',score:96}]));
 requestAnimationFrame(frame);
