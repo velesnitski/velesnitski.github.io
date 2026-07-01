@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Dino 🦕</title>
+<meta name="description" content="A friendly little long-neck dino. Tap or press space to make it jump!">
+<meta name="theme-color" content="#c2d6cf">
+<link rel="shortcut icon" type="image/x-icon" href="../favicons/favicon.ico">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Dino 🦕">
+<meta property="og:description" content="A friendly little long-neck dino — tap to make it jump!">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+       background:#0e1524;color:#e8eef5;display:flex;flex-direction:column;align-items:center;
+       min-height:100%;text-align:center;-webkit-tap-highlight-color:transparent}
+  h1{font-weight:800;margin:22px 0 2px;font-size:24px}
+  .sub{opacity:.6;font-size:14px;margin-bottom:16px}
+  .stage{border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);overflow:hidden;
+         width:min(660px,94vw);touch-action:manipulation;cursor:pointer}
+  canvas{display:block;width:100%;height:auto}
+  .panel{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;align-items:center;margin:16px;
+         background:#19202e;padding:12px 16px;border-radius:14px;max-width:94vw}
+  .panel label{font-size:11px;display:flex;flex-direction:column;gap:5px;align-items:center;opacity:.85}
+  button{background:#2b6cff;border:0;color:#fff;padding:9px 15px;border-radius:9px;font-size:14px;cursor:pointer;font-weight:600}
+  button.alt{background:#2a3344}
+  button.on{background:#22a05a}
+  input[type=color]{width:42px;height:26px;border:0;background:none;cursor:pointer;padding:0}
+  input[type=range]{width:90px}
+  .foot{opacity:.4;font-size:12px;margin:8px 16px 30px;line-height:1.6}
+  a{color:#7fb0ff}
+</style>
+</head>
+<body>
+  <h1>🦕 Dino</h1>
+  <div class="sub">Tap the dino — or press <b>space</b> — to make it jump! 👇</div>
+
+  <div class="stage" id="stage"><canvas id="scene" width="660" height="480"></canvas></div>
+
+  <div class="panel">
+    <button id="jumpBtn">⬆︎ Jump</button>
+    <button class="alt" id="walk">🚶 Walk</button>
+    <button class="alt" id="shades">😎 Shades</button>
+    <button class="alt" id="hat">👒 Panama</button>
+    <label>Body<input type="color" id="cBody" value="#66b49a"></label>
+    <label>Plates<input type="color" id="cPlate" value="#9ad1bd"></label>
+    <label>Belly<input type="color" id="cBelly" value="#f3e6c6"></label>
+    <label>Speed<input type="range" id="speed" min="0" max="2.4" step="0.05" value="1"></label>
+  </div>
+
+  <div class="foot">Made for the kids · works on phones &amp; tablets · <a href="../">home</a></div>
+
+<script>
+const TAU=Math.PI*2;
+function shade(hex,f){ const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  const c=v=>Math.max(0,Math.min(255,Math.round(v)));
+  return '#'+((1<<24)+(c(r*f)<<16)+(c(g*f)<<8)+c(b*f)).toString(16).slice(1); }
+let bodyHex="#66b49a", plateHex="#9ad1bd", bellyHex="#f3e6c6";
+const OUTLINE="#26383f", olw=5, BAND="#e0533b";
+
+function drawDino(ctx, cx, footY, s, o){
+  o=o||{}; o.t=o.t||0;
+  const BODY=bodyHex, DK=shade(bodyHex,0.80), CREAM=bellyHex, PLATE=plateHex;
+  const open=('open'in o)?o.open:1;
+
+  const hipY=-30;
+  const legs=[ {x:-2,far:1},{x:34,far:1},{x:-18,far:0},{x:20,far:0} ];
+  legs.forEach((L,i)=>{ let fx=L.x, fy=L.far?-1:1, lift=0;
+    if(o.jump){ fy=-18; fx=L.x*0.7; }
+    else if(o.walk){ const ph=o.t*0.16 + (i%2?Math.PI:0) + (L.far?Math.PI:0);
+      fx=L.x+Math.cos(ph)*5; lift=Math.max(0,Math.sin(ph))*7; fy=(L.far?-1:1)-lift; }
+    L.fx=fx; L.fy=fy; });
+  let bob = o.jump? -8 : (o.walk? -Math.abs(Math.sin(o.t*0.32))*2 : Math.sin(o.t*0.05)*1.5);
+
+  ctx.save(); ctx.translate(cx, footY+bob); ctx.scale(s,s);
+
+  ctx.fillStyle='rgba(30,55,60,.28)';
+  ctx.beginPath(); ctx.ellipse(10,8-bob,86,14,0,0,TAU); ctx.fill();
+
+  const legCap=(L,w,fill)=>{ ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(L.x,hipY); ctx.lineTo(L.fx,L.fy);
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=w+olw*2; ctx.stroke();
+    ctx.strokeStyle=fill; ctx.lineWidth=w; ctx.stroke(); };
+  legs.filter(L=>L.far).forEach(L=>legCap(L,22,DK));
+
+  const tailPath=()=>{ ctx.moveTo(46,-50);
+    ctx.bezierCurveTo(104,-44,120,-80,102,-106);
+    ctx.bezierCurveTo(96,-118,78,-114,84,-98);
+    ctx.bezierCurveTo(88,-84,66,-70,46,-86); ctx.closePath(); };
+  const parts=(mode)=>{
+    const el=(x,y,rx,ry)=>{ ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,TAU);
+      if(!mode){ ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=OUTLINE; }
+      else ctx.fillStyle=BODY; ctx.fill(); };
+    const cap=(x1,y1,x2,y2,w)=>{ ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+      if(!mode){ ctx.lineWidth=w+olw*2; ctx.strokeStyle=OUTLINE; } else { ctx.lineWidth=w; ctx.strokeStyle=BODY; } ctx.stroke(); };
+    legs.filter(L=>!L.far).forEach(L=>{ ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(L.x,hipY); ctx.lineTo(L.fx,L.fy);
+      if(!mode){ ctx.lineWidth=24+olw*2; ctx.strokeStyle=OUTLINE; } else { ctx.lineWidth=24; ctx.strokeStyle=BODY; } ctx.stroke(); });
+    ctx.beginPath(); tailPath();
+    if(!mode){ ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=OUTLINE; } else ctx.fillStyle=BODY; ctx.fill();
+    el(14,-66,56,44);
+    cap(-22,-80,-52,-122,46);
+    el(-62,-144,32,30); el(-83,-146,15,13);
+    el(-42,-160,9,8); el(-40,-136,8,7);
+  };
+  parts(0); parts(1);
+
+  ctx.save(); ctx.beginPath(); ctx.ellipse(14,-66,56,44,0,0,TAU); ctx.clip();
+    ctx.fillStyle=shade(bodyHex,0.9); ctx.beginPath(); ctx.ellipse(20,-30,54,22,0,0,TAU); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.10)'; ctx.beginPath(); ctx.ellipse(0,-98,40,16,0,0,TAU); ctx.fill();
+  ctx.restore();
+
+  ctx.lineCap='round'; ctx.strokeStyle=CREAM; ctx.lineWidth=15;
+  ctx.beginPath(); ctx.moveTo(-66,-124); ctx.quadraticCurveTo(-46,-92,-30,-64); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.ellipse(14,-66,56,44,0,0,TAU); ctx.clip();
+    ctx.fillStyle=CREAM; ctx.beginPath(); ctx.ellipse(-16,-44,32,22,0,0,TAU); ctx.fill();
+  ctx.restore();
+
+  const plates=[[-30,-92,8,7],[-14,-104,11,9],[2,-111,12,10],[20,-112,12,10],[38,-108,11,9],[54,-99,10,8],[68,-87,8,6]];
+  plates.forEach(([x,y,rx,ry])=>{ ctx.beginPath(); ctx.ellipse(x,y,rx,ry,0,0,TAU);
+    ctx.fillStyle=PLATE; ctx.fill(); ctx.lineWidth=2.4; ctx.strokeStyle=shade(plateHex,0.72); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.25)'; ctx.beginPath(); ctx.ellipse(x-2,y-2,rx*0.4,ry*0.4,0,0,TAU); ctx.fill(); });
+
+  ctx.save(); ctx.beginPath(); ctx.ellipse(-62,-144,32,30,0,0,TAU); ctx.clip();
+    ctx.fillStyle='rgba(255,255,255,.12)'; ctx.beginPath(); ctx.ellipse(-70,-160,18,10,-.3,0,TAU); ctx.fill();
+  ctx.restore();
+
+  // eye or shades
+  if(o.shades){
+    ctx.fillStyle='#17252a'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3.4;
+    ctx.beginPath(); ctx.ellipse(-71,-147,12,9,-.14,0,TAU); ctx.fill(); ctx.stroke();
+    ctx.lineWidth=3.4; ctx.beginPath(); ctx.moveTo(-60,-152); ctx.lineTo(-46,-155); ctx.stroke();   // temple
+    ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-83,-148); ctx.lineTo(-85,-149); ctx.stroke();       // bridge
+    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2.6; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-77,-150); ctx.lineTo(-69,-145); ctx.stroke();                        // shine
+  } else if(open<0.2){
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=4; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(-71,-146,7,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
+  } else {
+    ctx.fillStyle='#182226'; ctx.beginPath(); ctx.ellipse(-71,-148,5.4,6.2*open,0,0,TAU); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(-73,-150,1.9,2,0,0,TAU); ctx.fill();
+  }
+  ctx.fillStyle=OUTLINE; ctx.beginPath(); ctx.ellipse(-91,-149,2,2.4,0,0,TAU); ctx.fill();
+  ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.8; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(-90,-138); ctx.quadraticCurveTo(-82,-133,-74,-137); ctx.stroke();
+
+  if(o.hat){ const hx=-62;
+    const sg=ctx.createLinearGradient(0,-208,0,-166); sg.addColorStop(0,'#f8e6a6'); sg.addColorStop(1,'#e6c778');
+    ctx.beginPath(); ctx.moveTo(hx-30,-172); ctx.bezierCurveTo(hx-26,-206,hx+26,-206,hx+30,-172);
+    ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=sg; ctx.fill();
+    ctx.save(); ctx.beginPath(); ctx.moveTo(hx-30,-172); ctx.bezierCurveTo(hx-26,-206,hx+26,-206,hx+30,-172); ctx.closePath(); ctx.clip();
+      ctx.fillStyle=BAND; ctx.fillRect(hx-34,-192,68,11); ctx.restore();
+    ctx.beginPath(); ctx.ellipse(hx,-170,44,12,0,0,TAU);
+    ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=sg; ctx.fill();
+  }
+
+  ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.lineCap='round';
+  legs.filter(L=>!L.far).forEach(L=>{ for(let d=-1;d<=1;d+=2){ ctx.beginPath(); ctx.moveTo(L.fx+d*5,L.fy-2); ctx.lineTo(L.fx+d*5,L.fy+7); ctx.stroke(); } });
+
+  ctx.restore();
+}
+
+// ---------------- scene + jump ----------------
+const cv=document.getElementById('scene'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+const groundY=392, SC=1.55, CX=330;
+let walkOn=false, shadesOn=false, hatOn=false, t=0, speed=1;
+let dy=0, vel=0, air=false;
+function jump(){ if(!air){ vel=-15.5; air=true; } }
+
+function scene(){
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#d3e3dd'); g.addColorStop(1,'#c2d6cf');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(255,255,255,.6)';
+  [[130,90,44],[520,70,54],[400,120,34]].forEach(([x,y,r],i)=>{ let cxp=((x - t*0.25*(1+i*0.3))%780+780)%780-60;
+    ctx.beginPath(); ctx.ellipse(cxp,y,r,r*0.6,0,0,TAU); ctx.ellipse(cxp+r*0.7,y+6,r*0.7,r*0.45,0,0,TAU); ctx.fill(); });
+  ctx.fillStyle='#b7cdc4'; ctx.fillRect(0,groundY+16,W,H-groundY-16);
+}
+function frame(){
+  scene();
+  if(air){ vel+=0.86; dy+=vel; if(dy>=0){ dy=0; vel=0; air=false; } }
+  const k=t%240, blink=k<10?Math.abs(k-5)/5:1;
+  drawDino(ctx, CX, groundY+dy, SC, {t, walk:walkOn, shades:shadesOn, hat:hatOn, jump:air, open:(air?1:blink)});
+  t+=speed; requestAnimationFrame(frame);
+}
+
+// input
+const stage=document.getElementById('stage');
+stage.addEventListener('click', jump);
+stage.addEventListener('touchstart', e=>{ e.preventDefault(); jump(); }, {passive:false});
+addEventListener('keydown', e=>{ if(e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); jump(); } });
+
+const wBtn=document.getElementById('walk'), sBtn=document.getElementById('shades'), hBtn=document.getElementById('hat');
+document.getElementById('jumpBtn').onclick=jump;
+wBtn.onclick=()=>{ walkOn=!walkOn; wBtn.classList.toggle('on',walkOn); };
+sBtn.onclick=()=>{ shadesOn=!shadesOn; sBtn.classList.toggle('on',shadesOn); };
+hBtn.onclick=()=>{ hatOn=!hatOn; hBtn.classList.toggle('on',hatOn); };
+document.getElementById('cBody').oninput =e=>bodyHex=e.target.value;
+document.getElementById('cPlate').oninput=e=>plateHex=e.target.value;
+document.getElementById('cBelly').oninput=e=>bellyHex=e.target.value;
+document.getElementById('speed').oninput =e=>speed=parseFloat(e.target.value);
+
+// shareable presets: e.g. .../dino/#walk,shades,hat
+location.hash.slice(1).split(',').forEach(f=>{
+  if(f==='walk'){ walkOn=true; wBtn.classList.add('on'); }
+  if(f==='shades'){ shadesOn=true; sBtn.classList.add('on'); }
+  if(f==='hat'){ hatOn=true; hBtn.classList.add('on'); }
+});
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
