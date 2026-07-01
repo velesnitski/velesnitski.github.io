@@ -35,6 +35,22 @@
     background:#22a05a;color:#fff;padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px;
     opacity:0;pointer-events:none;transition:.3s;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.4)}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .modal{position:fixed;inset:0;background:rgba(8,12,20,.72);display:none;z-index:30;align-items:center;justify-content:center}
+  .modal.show{display:flex}
+  .modalBox{background:#141c2b;border-radius:16px;padding:14px 16px;width:min(560px,94vw);max-height:88vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+  .modalHead{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;margin-bottom:10px}
+  .modalHead #walletLbl{margin-left:auto;color:#ffd27a}
+  .modalHead #closetClose{background:#2a3344;border:0;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px}
+  .modalTabs{display:flex;gap:8px;margin-bottom:10px}
+  .modalTabs .tab{background:#2a3344;border:0;color:#cdd6e2;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+  .modalTabs .tab.on{background:#2b6cff;color:#fff}
+  .shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+  .card{background:#1c2536;border-radius:12px;padding:8px;text-align:center}
+  .card canvas{width:90px;height:80px;display:block;margin:0 auto;background:#cfe6df;border-radius:8px}
+  .card .cName{font-size:12px;margin:5px 0;font-weight:600;color:#e8eef5}
+  .card button{width:100%;background:#2b6cff;border:0;color:#fff;padding:6px;border-radius:7px;font-size:12px;cursor:pointer;font-weight:700}
+  .card button.eq{background:#22a05a}
+  .card button.no{background:#3a4150;color:#8894a3;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -44,19 +60,21 @@
   <div class="stage" id="stage"><canvas id="game" width="760" height="360"></canvas></div>
 
   <div class="panel">
-    <button id="share">📤 Share score</button>
-    <button class="alt" id="link">🔗 Game link</button>
+    <button id="closet">🎽 Closet</button>
+    <button class="alt" id="share">📤 Share</button>
+    <button class="alt" id="challenge">⚔️ Challenge</button>
     <button class="alt" id="pause">⏸ Pause</button>
     <button class="alt" id="mute">🔊 Sound</button>
-    <button class="alt" id="shades">😎 Shades</button>
-    <button class="alt" id="hat">👒 Panama</button>
     <label>Name<input type="text" id="pname" maxlength="12" placeholder="you"></label>
-    <label>Body<input type="color" id="cBody" value="#66b49a"></label>
-    <label>Plates<input type="color" id="cPlate" value="#9ad1bd"></label>
-    <label>Belly<input type="color" id="cBelly" value="#f3e6c6"></label>
   </div>
 
   <div class="toast" id="toast"></div>
+
+  <div class="modal" id="closetModal"><div class="modalBox">
+    <div class="modalHead">🎽 Closet <span id="walletLbl">🍓 0</span> <button id="closetClose">✕</button></div>
+    <div class="modalTabs"><button class="tab on" data-tab="skin">Dinos</button><button class="tab" data-tab="hat">Hats</button><button class="tab" data-tab="acc">Extras</button></div>
+    <div class="shop" id="shop"></div>
+  </div></div>
 
   <div class="foot">Made for the kids · works on phones &amp; tablets · <a href="../">home</a></div>
 
@@ -144,14 +162,29 @@ function drawDino(ctx, cx, footY, s, o){
   ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.8; ctx.lineCap='round';
   ctx.beginPath(); ctx.moveTo(-90,-138); ctx.quadraticCurveTo(-82,-133,-74,-137); ctx.stroke();
 
-  if(o.hat){ const hx=-62;
-    const sg=ctx.createLinearGradient(0,-208,0,-166); sg.addColorStop(0,'#f8e6a6'); sg.addColorStop(1,'#e6c778');
-    ctx.beginPath(); ctx.moveTo(hx-30,-172); ctx.bezierCurveTo(hx-26,-206,hx+26,-206,hx+30,-172);
-    ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=sg; ctx.fill();
-    ctx.save(); ctx.beginPath(); ctx.moveTo(hx-30,-172); ctx.bezierCurveTo(hx-26,-206,hx+26,-206,hx+30,-172); ctx.closePath(); ctx.clip();
-      ctx.fillStyle=BAND; ctx.fillRect(hx-34,-192,68,11); ctx.restore();
-    ctx.beginPath(); ctx.ellipse(hx,-170,44,12,0,0,TAU);
-    ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=sg; ctx.fill();
+  if(o.hat && o.hat!=='none'){ const hx=-62;
+    if(o.hat==='panama' || o.hat===true){
+      const sg=ctx.createLinearGradient(0,-208,0,-166); sg.addColorStop(0,'#f8e6a6'); sg.addColorStop(1,'#e6c778');
+      ctx.beginPath(); ctx.moveTo(hx-30,-172); ctx.bezierCurveTo(hx-26,-206,hx+26,-206,hx+30,-172);
+      ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=sg; ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.moveTo(hx-30,-172); ctx.bezierCurveTo(hx-26,-206,hx+26,-206,hx+30,-172); ctx.closePath(); ctx.clip();
+        ctx.fillStyle=BAND; ctx.fillRect(hx-34,-192,68,11); ctx.restore();
+      ctx.beginPath(); ctx.ellipse(hx,-170,44,12,0,0,TAU);
+      ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=sg; ctx.fill();
+    } else if(o.hat==='party'){
+      ctx.beginPath(); ctx.moveTo(hx-22,-166); ctx.lineTo(hx,-220); ctx.lineTo(hx+22,-166); ctx.closePath();
+      ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle='#ff5c8a'; ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.moveTo(hx-22,-166); ctx.lineTo(hx,-220); ctx.lineTo(hx+22,-166); ctx.closePath(); ctx.clip();
+        ctx.strokeStyle='#ffd54a'; ctx.lineWidth=5; for(let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(hx-30+i*13,-166); ctx.lineTo(hx-30+i*13+16,-220); ctx.stroke(); }
+      ctx.restore();
+      ctx.fillStyle='#fff'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(hx,-222,6,0,TAU); ctx.fill(); ctx.stroke();
+    } else if(o.hat==='crown'){
+      const cg=ctx.createLinearGradient(0,-200,0,-168); cg.addColorStop(0,'#ffe27a'); cg.addColorStop(1,'#e0a52e');
+      ctx.beginPath(); ctx.moveTo(hx-26,-170); ctx.lineTo(hx-26,-192); ctx.lineTo(hx-13,-181); ctx.lineTo(hx,-200); ctx.lineTo(hx+13,-181); ctx.lineTo(hx+26,-192); ctx.lineTo(hx+26,-170); ctx.closePath();
+      ctx.lineJoin='round'; ctx.lineWidth=olw*2; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle=cg; ctx.fill();
+      ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.arc(hx,-176,3,0,TAU); ctx.fill();
+      ctx.fillStyle='#4aa3ff'; ctx.beginPath(); ctx.arc(hx-15,-175,2.5,0,TAU); ctx.arc(hx+15,-175,2.5,0,TAU); ctx.fill();
+    }
   }
 
   ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.lineCap='round';
@@ -232,11 +265,114 @@ let pName=(localStorage.getItem('dinoName')||'').slice(0,12);
 if(cardMode){ lastScore=248; hi=248; }
 const GAME_URL=location.origin+location.pathname;
 
+// ---------------- meta: berry wallet, closet, daily missions ----------------
+let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0;
+const SKINS=[
+  {id:'rex',   name:'Rex',   price:0,   body:'#66b49a', plate:'#9ad1bd', belly:'#f3e6c6'},
+  {id:'mint',  name:'Minty', price:30,  body:'#7fd6b0', plate:'#b8ead6', belly:'#f3e6c6'},
+  {id:'sky',   name:'Sky',   price:40,  body:'#6baede', plate:'#a9d4f5', belly:'#eef3f7'},
+  {id:'rose',  name:'Rosa',  price:50,  body:'#e58fa8', plate:'#f6c2d1', belly:'#fdeef2'},
+  {id:'grape', name:'Grape', price:60,  body:'#9b7fd0', plate:'#c9b6ec', belly:'#efe7fb'},
+  {id:'sun',   name:'Sunny', price:70,  body:'#e6b45a', plate:'#f4d79a', belly:'#fbf1d6'},
+  {id:'shadow',name:'Shadow',price:120, body:'#5a6472', plate:'#8b95a4', belly:'#d7dde6'}
+];
+const HATS=[{id:'none',name:'None',price:0},{id:'panama',name:'Panama',price:20},{id:'party',name:'Party',price:35},{id:'crown',name:'Crown',price:150}];
+const ACCS=[{id:'noacc',name:'None',price:0},{id:'shades',name:'Shades',price:30}];
+let owned, equip;
+try{ owned=JSON.parse(localStorage.getItem('dinoOwned')); }catch(e){}
+if(!Array.isArray(owned)) owned=['rex','none','noacc'];
+try{ equip=JSON.parse(localStorage.getItem('dinoEquip')); }catch(e){}
+if(!equip||!equip.skin) equip={skin:'rex',hat:'none',acc:'noacc'};
+function saveCloset(){ localStorage.setItem('dinoWallet',wallet); localStorage.setItem('dinoOwned',JSON.stringify(owned)); localStorage.setItem('dinoEquip',JSON.stringify(equip)); }
+function applyEquip(){ const s=SKINS.find(x=>x.id===equip.skin)||SKINS[0]; bodyHex=s.body; plateHex=s.plate; bellyHex=s.belly; hatOn=equip.hat; shadesOn=(equip.acc==='shades'); }
+
+function hashStr(s){ let h=2166136261>>>0; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function dstr(d){ return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function todayStr(){ return dstr(new Date()); }
+const MPOOL=[
+  {id:'berry', icon:'🍓', text:'Eat {g} strawberries', goals:[15,25,40], type:'berry'},
+  {id:'score', icon:'🏁', text:'Reach {g} points',     goals:[150,250], type:'score'},
+  {id:'combo', icon:'🔥', text:'Get a x5 combo',        goals:[5], type:'combo'},
+  {id:'shield',icon:'🛡', text:'Grab a shield',         goals:[1], type:'shield'},
+  {id:'magnet',icon:'🧲', text:'Grab a magnet',         goals:[1], type:'magnet'},
+  {id:'dive',  icon:'🪂', text:'Do {g} dives',          goals:[3,5], type:'dive'},
+  {id:'nice',  icon:'✨', text:'{g} near-misses',       goals:[2,3], type:'nice'},
+  {id:'slam',  icon:'💥', text:'Slam {g} bats',         goals:[2,3], type:'slam'}
+];
+let missions=[], streak=0;
+function initMissions(){
+  const today=todayStr(); let stored=null;
+  try{ stored=JSON.parse(localStorage.getItem('dinoMissions')); }catch(e){}
+  let sd={}; try{ sd=JSON.parse(localStorage.getItem('dinoStreak'))||{}; }catch(e){}
+  streak=sd.count||0;
+  if(stored && stored.date===today && Array.isArray(stored.m)){ missions=stored.m; return; }
+  const rnd=mulberry32(hashStr(today)), pool=MPOOL.slice(), pick=[];
+  for(let i=0;i<3 && pool.length;i++){ const m=pool.splice(Math.floor(rnd()*pool.length),1)[0], g=m.goals[Math.floor(rnd()*m.goals.length)];
+    pick.push({id:m.id,icon:m.icon,text:m.text.replace('{g}',g),goal:g,type:m.type,prog:0,done:false}); }
+  missions=pick; localStorage.setItem('dinoMissions',JSON.stringify({date:today,m:missions}));
+}
+function saveMissions(){ localStorage.setItem('dinoMissions',JSON.stringify({date:todayStr(),m:missions})); }
+function bumpStreak(){ const today=todayStr(); let sd={}; try{ sd=JSON.parse(localStorage.getItem('dinoStreak'))||{}; }catch(e){}
+  if(sd.last===today) return; const y=new Date(); y.setDate(y.getDate()-1);
+  streak=(sd.last===dstr(y))?((sd.count||0)+1):1; localStorage.setItem('dinoStreak',JSON.stringify({count:streak,last:today})); }
+function missionEvent(type,amount){ if(!missions.length) return; let ch=false;
+  missions.forEach(m=>{ if(m.done||m.type!==type) return;
+    if(type==='score'||type==='combo'){ m.prog=Math.max(m.prog,amount); if(amount>=m.goal){ m.done=true; ch=true; } }
+    else { m.prog=Math.min(m.goal,m.prog+(amount||1)); if(m.prog>=m.goal){ m.done=true; ch=true; } }
+    if(m.done){ wallet+=20; toast(m.icon+' Mission done! +20 🍓'); vibe(20); bumpStreak(); saveCloset(); } });
+  if(ch) saveMissions();
+}
+
+// closet UI
+let closetTab='skin';
+function renderShop(){ const shop=document.getElementById('shop'); if(!shop) return; shop.innerHTML='';
+  document.getElementById('walletLbl').textContent='🍓 '+wallet;
+  const list=closetTab==='skin'?SKINS:closetTab==='hat'?HATS:ACCS, eqKey=closetTab==='skin'?'skin':closetTab==='hat'?'hat':'acc';
+  list.forEach(it=>{ const have=owned.includes(it.id), on=equip[eqKey]===it.id;
+    const card=document.createElement('div'); card.className='card';
+    const pc=document.createElement('canvas'); pc.width=90; pc.height=80; card.appendChild(pc);
+    const nm=document.createElement('div'); nm.className='cName'; nm.textContent=it.name; card.appendChild(nm);
+    const btn=document.createElement('button');
+    if(on){ btn.textContent='Worn'; btn.className='eq'; }
+    else if(have){ btn.textContent='Wear'; }
+    else if(wallet>=it.price){ btn.textContent='🍓 '+it.price; }
+    else { btn.textContent='🍓 '+it.price; btn.className='no'; }
+    btn.onclick=()=>{ if(on) return; if(!have){ if(wallet<it.price) return; wallet-=it.price; owned.push(it.id); } equip[eqKey]=it.id; applyEquip(); saveCloset(); renderShop(); };
+    card.appendChild(btn); shop.appendChild(card);
+    const px=pc.getContext('2d'), sv={b:bodyHex,p:plateHex,be:bellyHex};
+    if(closetTab==='skin'){ bodyHex=it.body; plateHex=it.plate; bellyHex=it.belly; }
+    drawDino(px,46,74,0.32,{t:8,flip:true,hat:(closetTab==='hat'?it.id:equip.hat),shades:(closetTab==='acc'?(it.id==='shades'):(equip.acc==='shades')),open:1});
+    bodyHex=sv.b; plateHex=sv.p; bellyHex=sv.be;
+  });
+}
+function openCloset(){ closetTab='skin'; document.querySelectorAll('.modalTabs .tab').forEach(tb=>tb.classList.toggle('on',tb.dataset.tab==='skin')); renderShop(); document.getElementById('closetModal').classList.add('show'); if(state==='play') paused=true; }
+
+async function shareChallenge(){ initAudio(); const sc=lastScore||hi, url=GAME_URL+'#c='+sc;
+  const text=(pName||'I')+' dare you: beat '+sc+' in Strawberry Dash 🦕🍓!';
+  try{ if(navigator.share){ await navigator.share({title:'Strawberry Dash challenge',text,url}); return; } }catch(e){ if(e&&e.name==='AbortError') return; }
+  try{ await navigator.clipboard.writeText(text+' '+url); toast('Challenge link copied! ⚔️'); }catch(e){ toast(url); }
+}
+
+function missionPanel(){
+  const w=372, rowH=23, info=1, h=34+info*22+missions.length*rowH+34, x=(W-w)/2, y=(H-h)/2-2;
+  ctx.fillStyle='rgba(18,28,26,.68)'; ctx.beginPath(); ctx.roundRect(x,y,w,h,16); ctx.fill();
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 23px system-ui,sans-serif'; ctx.fillText('🍓 Strawberry Dash',W/2,y+28);
+  ctx.font='bold 13px system-ui,sans-serif'; ctx.fillStyle='#ffd27a';
+  ctx.fillText(challenge>0 ? ('🔥 a friend dares you — beat '+challenge+'!') : ('📋 daily · 🔥 '+streak+'d streak · 🍓 '+wallet+' saved'), W/2, y+48);
+  ctx.font='600 14px system-ui,sans-serif';
+  missions.forEach((m,i)=>{ const yy=y+72+i*rowH; ctx.textAlign='left'; ctx.fillStyle=m.done?'#7fe0a0':'#e8eef5';
+    ctx.fillText((m.done?'✓ ':m.icon+' ')+m.text, x+22, yy);
+    ctx.textAlign='right'; ctx.fillStyle=m.done?'#7fe0a0':'#9fb0c0'; ctx.fillText(m.done?'✓':(m.prog+'/'+m.goal), x+w-22, yy); });
+  ctx.textAlign='center'; ctx.fillStyle='#bfe3ff'; ctx.font='bold 16px system-ui,sans-serif'; ctx.fillText('Tap / click / Space to play', W/2, y+h-14);
+}
+
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; }
 function start(){ reset(); state='play'; sfxStart(); }
 function over(){ state='over'; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
+  wallet+=runBerries; saveCloset();
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
   if(newBest){ confetti(); sfxWin(); } vibe(120); }
 function action(){ initAudio();
@@ -257,6 +393,7 @@ function spawn(){
 
 function update(){
   t++;
+  if(hitstop>0){ hitstop--; return; }
   sq*=0.82;
   updateParticles();
   if(demo){ if(!ents.length){ ents=[{k:'bat',x:680,y:groundY-40,f:0},{k:'gold',x:300,y:groundY-104,got:false},{k:'mag',x:224,y:groundY-104,got:false}];
@@ -264,7 +401,7 @@ function update(){
   if(shake>0) shake*=0.86; if(mileFlash>0) mileFlash--;
   if(state!=='play') return;
   speed=Math.min(9.2, speed+0.0016);
-  score+=speed*0.02;
+  score+=speed*0.02; missionEvent('score',Math.floor(score));
   if(Math.floor(score/100)>lastMile){ lastMile++; mileFlash=14; speed=Math.min(9.2,speed+0.25); pop(lastMile*100+'!',dinoX,groundY+dy-104,'#ffd54a'); sfxMile(); vibe(20); }
   if(comboTimer>0 && --comboTimer===0) combo=0;
   if(challenge>0 && !challengePassed && score>challenge){ challengePassed=true; toast('🔥 Passed '+challenge+'!'); sfxBerry(2); }
@@ -272,7 +409,7 @@ function update(){
   if(!air) coyote=6; else if(coyote>0) coyote--;
   if(jumpBuf>0) jumpBuf--;
   if(jumpBuf>0 && coyote>0 && !air){ vel=-15.6; air=true; coyote=0; jumpBuf=0; sq=-0.14; sfxJump(); }
-  else if(jumpBuf>0 && air && !diving){ diving=true; vel=Math.max(vel,20); jumpBuf=0; sq=-0.2; sfxDive(); }
+  else if(jumpBuf>0 && air && !diving){ diving=true; vel=Math.max(vel,20); jumpBuf=0; sq=-0.2; sfxDive(); missionEvent('dive',1); }
   if(air){ vel+=0.86; dy+=vel; if(dy>=0){ dy=0; vel=0; air=false;
     if(diving){ diving=false; sq=0.3; diveSlam(dinoX); shake=7; sfxLand(); } else { sq=0.22; dust(dinoX); } } }
   spawnT--; if(spawnT<=0) spawnT=spawn();
@@ -280,16 +417,20 @@ function update(){
   const dcx=dinoX, dcy=groundY+dy-64;
   for(const e of ents){ e.x-=speed;
     if(magnet>0 && (e.k==='berry'||e.k==='gold') && !e.got){ const mx=dcx-e.x, my=dcy-e.y; if(mx*mx+my*my<300*300){ e.x+=mx*0.16; e.y+=my*0.16; } }
-    if((e.k==='berry'||e.k==='gold'||e.k==='mag')&&!e.got){ const dx=e.x-dcx, dyy=e.y-dcy; if(dx*dx+dyy*dyy<52*52){ e.got=true;
+    if((e.k==='berry'||e.k==='gold'||e.k==='mag')&&!e.got){ const dx=e.x-dcx, dyy=e.y-dcy; if(dx*dx+dyy*dyy<52*52){ e.got=true; runBerries++;
       if(e.k==='gold'){ score+=15; goldSparkle(e.x,e.y); sfxPower();
-        if(!shield){ shield=true; pop('🛡 SHIELD!',dcx,dcy-74,'#39d0ff'); } else pop('+15',e.x,e.y-10,'#ffcf3a'); }
-      else if(e.k==='mag'){ score+=10; magnet=300; goldSparkle(e.x,e.y); sfxPower(); pop('🧲 MAGNET!',dcx,dcy-74,'#4aa3ff'); }
+        if(!shield){ shield=true; pop('🛡 SHIELD!',dcx,dcy-74,'#39d0ff'); } else pop('+15',e.x,e.y-10,'#ffcf3a'); missionEvent('shield',1); }
+      else if(e.k==='mag'){ score+=10; magnet=300; goldSparkle(e.x,e.y); sfxPower(); pop('🧲 MAGNET!',dcx,dcy-74,'#4aa3ff'); missionEvent('magnet',1); }
       else { combo++; comboTimer=200; const pts=5*Math.min(combo,5); score+=pts;
-        sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300'); sfxBerry(Math.min(combo,6)); } } }
+        sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300'); sfxBerry(Math.min(combo,6)); missionEvent('berry',1); missionEvent('combo',combo); } } }
     else if(e.k==='bat'){
-      if(invuln<=0 && Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8)){
+      const hit = Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8);
+      if(hit && diving && vel>4){
+        e.dead=true; score+=8; combo++; comboTimer=200; hitBurst(e.x,e.y); shieldPop(e.x,e.y);
+        vel=-13; diving=false; air=true; hitstop=4; shake=9; sfxLand(); pop('SLAM! +8',dinoX,groundY+dy-96,'#ffd54a'); vibe(30); missionEvent('slam',1); missionEvent('combo',combo); }
+      else if(hit && invuln<=0){
         if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; sfxShield(); vibe(40); } else over(); }
-      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ score+=3; pop('NICE!',dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); } } }
+      else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ score+=3; pop('NICE!',dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); missionEvent('nice',1); } } }
   }
   ents=ents.filter(e=> e.x>-60 && !e.dead && !((e.k==='berry'||e.k==='gold'||e.k==='mag')&&e.got));
 }
@@ -431,13 +572,12 @@ function frame(){
   if(hitFlash>0){ ctx.fillStyle='rgba(229,56,78,'+(hitFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); hitFlash--; }
   if(mileFlash>0){ ctx.fillStyle='rgba(255,245,200,'+(mileFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); }
   hud();
-  if(state==='menu'){ const L=[['🍓 Strawberry Dash','bold 24px']];
-    L.push(challenge>0?['🔥 Beat '+challenge+'!','bold 17px','#ffd27a']:['🍓 eat · 🦇 dodge · 🌟 gold=shield · 🔵 blue=magnet','500 12px','#cde']);
-    bigPanel(L,'Tap / click / Space to play'); }
+  if(state==='menu') missionPanel();
   if(state==='over'){ const beat=challenge>0 && lastScore>challenge;
     const medal=lastScore>=500?'🥇':lastScore>=250?'🥈':lastScore>=100?'🥉':'';
     bigPanel([[(medal?medal+' ':'')+(newBest?'NEW BEST!':(beat?'You beat '+challenge+'!':'Game Over')),'bold 24px',(newBest||beat||medal)?'#ffe08a':'#fff'],
-      ['Score '+lastScore+' · Best '+hi,'500 16px','#dfe']], 'Tap to retry · 📤 Share below'); }
+      ['Score '+lastScore+' · Best '+hi,'500 16px','#dfe'],
+      ['🍓 +'+runBerries+' earned · '+wallet+' saved','500 13px','#ffd27a']], 'Tap to retry · ⚔️ Challenge below'); }
   if(paused && state==='play') panel([['⏸ Paused','bold 26px'],['tap to resume · P','bold 15px','#bfe3ff']]);
   requestAnimationFrame(frame);
 }
@@ -498,22 +638,23 @@ stage.addEventListener('click', action);
 stage.addEventListener('touchstart', e=>{ e.preventDefault(); action(); }, {passive:false});
 addEventListener('keydown', e=>{ if(e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); action(); } else if(e.code==='KeyP'||e.code==='Escape'){ if(state==='play') paused=!paused; } });
 
-const mBtn=document.getElementById('mute'), sBtn=document.getElementById('shades'), hBtn=document.getElementById('hat');
+const mBtn=document.getElementById('mute');
 function paintMute(){ mBtn.textContent=muted?'🔇 Muted':'🔊 Sound'; mBtn.classList.toggle('on',!muted); }
 mBtn.onclick=()=>{ muted=!muted; localStorage.setItem('dinoMute',muted?'1':'0'); paintMute(); initAudio(); };
-sBtn.onclick=()=>{ shadesOn=!shadesOn; sBtn.classList.toggle('on',shadesOn); };
-hBtn.onclick=()=>{ hatOn=!hatOn; hBtn.classList.toggle('on',hatOn); };
-document.getElementById('cBody').oninput =e=>bodyHex=e.target.value;
-document.getElementById('cPlate').oninput=e=>plateHex=e.target.value;
-document.getElementById('cBelly').oninput=e=>bellyHex=e.target.value;
 document.getElementById('share').onclick=shareResult;
+document.getElementById('challenge').onclick=shareChallenge;
 document.getElementById('pause').onclick=()=>{ if(state==='play') paused=!paused; };
-document.getElementById('link').onclick=shareLink;
+document.getElementById('closet').onclick=openCloset;
+document.getElementById('closetClose').onclick=()=>document.getElementById('closetModal').classList.remove('show');
+document.querySelectorAll('.modalTabs .tab').forEach(tb=>tb.onclick=()=>{ closetTab=tb.dataset.tab; document.querySelectorAll('.modalTabs .tab').forEach(x=>x.classList.toggle('on',x===tb)); renderShop(); });
+applyEquip(); initMissions();
 const nameEl=document.getElementById('pname'); nameEl.value=pName;
 nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); };
 paintMute();
 if(demo) state='play';
 if(P.has('fx')){ confetti(); sparkle(320,180); pop('+25',320,168,'#e5384e'); pop('x5',258,120,'#ffb300'); }
+if(P.has('closet')){ if(P.has('rich')){ wallet=800; } openCloset(); }
+if(P.get('wear')){ equip.hat=P.get('wear'); applyEquip(); }
 if(P.has('seed')) localStorage.setItem('dinoBoard', JSON.stringify([{name:'MILA',score:412},{name:'LEO',score:388},{name:'you',score:240},{name:'MILA',score:150},{name:'LEO',score:96}]));
 requestAnimationFrame(frame);
 </script>
