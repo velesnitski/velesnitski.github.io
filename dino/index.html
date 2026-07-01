@@ -160,12 +160,13 @@ function drawDino(ctx, cx, footY, s, o){
 }
 
 // ------------------------------------------------ props --
-function drawBerry(ctx,x,y){ ctx.save(); ctx.translate(x,y); const r=13;
+function drawBerry(ctx,x,y,gold){ ctx.save(); ctx.translate(x,y); const r=13;
+  if(gold){ ctx.fillStyle='rgba(255,220,90,'+(0.3+0.14*Math.sin(t*0.2))+')'; ctx.beginPath(); ctx.arc(0,0,r+9,0,TAU); ctx.fill(); }
   ctx.beginPath(); ctx.moveTo(0,r*1.05);
   ctx.bezierCurveTo(-r*1.15,r*0.35,-r*1.02,-r*0.7,0,-r*0.5);
   ctx.bezierCurveTo(r*1.02,-r*0.7,r*1.15,r*0.35,0,r*1.05); ctx.closePath();
-  ctx.fillStyle='#e5384e'; ctx.strokeStyle='#7a1a2a'; ctx.lineWidth=3; ctx.stroke(); ctx.fill();
-  ctx.fillStyle='#ffe08a';
+  ctx.fillStyle=gold?'#ffcf3a':'#e5384e'; ctx.strokeStyle=gold?'#a9761a':'#7a1a2a'; ctx.lineWidth=3; ctx.stroke(); ctx.fill();
+  ctx.fillStyle=gold?'#9a6b1a':'#ffe08a';
   [[-5,0],[4,-1],[0,5],[-3,8],[6,6],[-7,-4],[7,-4]].forEach(([sx,sy])=>{ ctx.save(); ctx.translate(sx,sy); ctx.rotate(0.5);
     ctx.beginPath(); ctx.ellipse(0,0,1.3,2.2,0,0,TAU); ctx.fill(); ctx.restore(); });
   ctx.fillStyle='rgba(255,255,255,.35)'; ctx.beginPath(); ctx.ellipse(-5,-2,3,4,-.4,0,TAU); ctx.fill();
@@ -205,6 +206,8 @@ const sfxBerry=(n=0)=>{ const p=Math.pow(1.06,n); beep(680*p,0.08,'triangle',0.0
 const sfxWin=()=>{ [0,120,240,380].forEach((d,i)=>setTimeout(()=>beep(520+i*150,0.14,'square',0.05,660+i*170),d)); };
 const sfxHit  =()=>{ beep(400,0.35,'sawtooth',0.07,70); setTimeout(()=>beep(160,0.3,'square',0.05,60),60); };
 const sfxStart=()=>{ beep(520,0.09,'square',0.05,780); setTimeout(()=>beep(780,0.11,'square',0.05,1040),90); };
+const sfxPower=()=>{ beep(700,0.10,'sine',0.06,1250); setTimeout(()=>beep(1050,0.12,'sine',0.06,1550),60); };
+const sfxShield=()=>{ beep(300,0.20,'square',0.06,110); };
 
 // ------------------------------------------------ game --
 const cv=document.getElementById('game'), ctx=cv.getContext('2d'), W=760, H=360;
@@ -214,7 +217,7 @@ const groundY=286, dinoX=168, SC=1.02;
 let shadesOn=false, hatOn=false, t=0;
 let state='menu', score=0, hi=+(localStorage.getItem('dinoHi')||0), speed=4;
 let ents=[], spawnT=50, dy=0, vel=0, air=false, hitFlash=0, lastScore=0, challengePassed=false;
-let coyote=0, jumpBuf=0, sq=0, combo=0, comboTimer=0, shake=0, newBest=false, parts=[], pops=[];
+let coyote=0, jumpBuf=0, sq=0, combo=0, comboTimer=0, shake=0, newBest=false, parts=[], pops=[], shield=false, invuln=0;
 const P=new URLSearchParams(location.hash.replace(/^#/,''));
 const demo=P.has('demo'), cardMode=P.has('card');
 let challenge=Math.max(0,Math.floor(+P.get('c')||0));
@@ -222,7 +225,8 @@ let pName=(localStorage.getItem('dinoName')||'').slice(0,12);
 if(cardMode){ lastScore=248; hi=248; }
 const GAME_URL=location.origin+location.pathname;
 
-function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false; }
+function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; }
 function start(){ reset(); state='play'; sfxStart(); }
 function over(){ state='over'; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
@@ -233,14 +237,20 @@ function action(){ initAudio();
   else if(state==='over') start(); }
 
 function spawn(){
-  if(Math.random()<0.52) ents.push({k:'bat', x:W+40, y:groundY-30-Math.random()*46, f:Math.random()*TAU});
-  else ents.push({k:'berry', x:W+40, y:groundY-72-Math.random()*74, got:false}); }
+  const base=Math.max(46, 96-speed*4)+Math.random()*34, r=Math.random();
+  if(r<0.08){ ents.push({k:'gold', x:W+40, y:groundY-84-Math.random()*54, got:false}); return base; }
+  if(r<0.52){ ents.push({k:'bat', x:W+40, y:groundY-30-Math.random()*46, f:Math.random()*TAU}); return base; }
+  if(r<0.66){ const n=5, baseY=groundY-72, amp=60+Math.random()*30;   // arc of berries tracing a jump
+    for(let i=0;i<n;i++){ const f=i/(n-1); ents.push({k:'berry', x:W+40+i*40, y:baseY-Math.sin(f*Math.PI)*amp, got:false}); }
+    return base+28; }
+  ents.push({k:'berry', x:W+40, y:groundY-72-Math.random()*74, got:false}); return base; }
 
 function update(){
   t++;
   sq*=0.82;
   updateParticles();
-  if(demo){ if(!ents.length){ ents=[{k:'berry',x:470,y:groundY-96,got:false},{k:'bat',x:600,y:groundY-40,f:0}]; } return; }
+  if(demo){ if(!ents.length){ ents=[{k:'bat',x:660,y:groundY-40,f:0},{k:'gold',x:330,y:groundY-104,got:false}];
+    for(let i=0;i<5;i++){ const f=i/4; ents.push({k:'berry',x:430+i*40,y:groundY-72-Math.sin(f*Math.PI)*72,got:false}); } shield=true; } return; }
   if(shake>0) shake*=0.86;
   if(state!=='play') return;
   speed=Math.min(9.2, speed+0.0016);
@@ -252,16 +262,19 @@ function update(){
   if(jumpBuf>0) jumpBuf--;
   if(jumpBuf>0 && coyote>0 && !air){ vel=-15.6; air=true; coyote=0; jumpBuf=0; sq=-0.14; sfxJump(); }
   if(air){ vel+=0.86; dy+=vel; if(dy>=0){ dy=0; vel=0; air=false; sq=0.22; dust(dinoX); } }
-  spawnT--; if(spawnT<=0){ spawn(); spawnT=Math.max(46, 96-speed*4)+Math.random()*34; }
+  spawnT--; if(spawnT<=0) spawnT=spawn();
+  if(invuln>0) invuln--;
   const dcx=dinoX, dcy=groundY+dy-64;
   for(const e of ents){ e.x-=speed;
-    if(e.k==='berry'&&!e.got){ const dx=e.x-dcx, dyy=e.y-dcy; if(dx*dx+dyy*dyy<52*52){
-      e.got=true; combo++; comboTimer=200; const pts=5*Math.min(combo,5); score+=pts;
-      sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300');
-      sfxBerry(Math.min(combo,6)); } }
-    else if(e.k==='bat'){ if(Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8)){ over(); } }
+    if((e.k==='berry'||e.k==='gold')&&!e.got){ const dx=e.x-dcx, dyy=e.y-dcy; if(dx*dx+dyy*dyy<52*52){ e.got=true;
+      if(e.k==='gold'){ score+=15; goldSparkle(e.x,e.y); sfxPower();
+        if(!shield){ shield=true; pop('🛡 SHIELD!',dcx,dcy-74,'#39d0ff'); } else pop('+15',e.x,e.y-10,'#ffcf3a'); }
+      else { combo++; comboTimer=200; const pts=5*Math.min(combo,5); score+=pts;
+        sparkle(e.x,e.y); pop('+'+pts,e.x,e.y-10,'#e5384e'); if(combo>=2) pop('x'+Math.min(combo,5),dcx,dcy-72,'#ffb300'); sfxBerry(Math.min(combo,6)); } } }
+    else if(e.k==='bat'){ if(invuln<=0 && Math.abs(e.x-dinoX)<32 && (groundY+dy-118)<(e.y+11) && (e.y-11)<(groundY+dy-8)){
+      if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; sfxShield(); } else over(); } }
   }
-  ents=ents.filter(e=> e.x>-60 && !(e.k==='berry'&&e.got));
+  ents=ents.filter(e=> e.x>-60 && !e.dead && !((e.k==='berry'||e.k==='gold')&&e.got));
 }
 
 // ---- particles + score popups (juice) ----
@@ -280,6 +293,10 @@ function hitBurst(x,y){ for(let i=0;i<14;i++){ const a=Math.random()*TAU, s=2+Ma
 function confetti(){ const cols=['#e5384e','#ffd54a','#4bae5a','#2b6cff','#ff8fb0','#9ad1bd'];
   for(let i=0;i<70;i++){ parts.push({x:Math.random()*W,y:-Math.random()*80,vx:(Math.random()*2-1)*1.5,vy:2+Math.random()*2.5,g:0.05,life:90+Math.random()*50,r:3+Math.random()*3,c:cols[i%cols.length],rect:1,rot:Math.random()*TAU,spin:(Math.random()*2-1)*0.3}); } }
 function pop(text,x,y,c){ pops.push({text,x,y,vy:-1.4,life:40,c}); }
+function goldSparkle(x,y){ for(let i=0;i<14;i++){ const a=Math.random()*TAU,s=1.5+Math.random()*3;
+  parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-1,g:0.1,life:26+Math.random()*12,r:2+Math.random()*2.5,c:Math.random()<0.5?'#ffe14a':'#fff'}); } }
+function shieldPop(x,y){ for(let i=0;i<18;i++){ const a=Math.random()*TAU,s=2+Math.random()*3.5;
+  parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,g:0.08,life:24+Math.random()*12,r:2+Math.random()*2.5,c:Math.random()<0.5?'#39d0ff':'#fff'}); } }
 function drawParticles(){
   for(const p of parts){ ctx.globalAlpha=Math.max(0,Math.min(1,p.life/18)); ctx.fillStyle=p.c;
     if(p.rect){ ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.rot||0); ctx.fillRect(-p.r,-p.r*0.6,p.r*2,p.r*1.2); ctx.restore(); }
@@ -325,6 +342,8 @@ function hud(){
   ctx.textAlign='right'; ctx.strokeText('Best '+hi,W-16,30); ctx.fillText('Best '+hi,W-16,30);
   if(state==='play' && combo>=2){ ctx.textAlign='left'; ctx.font='bold 18px system-ui,sans-serif'; ctx.fillStyle='#d8442f';
     ctx.strokeText('🔥 x'+Math.min(combo,5),16,54); ctx.fillText('🔥 x'+Math.min(combo,5),16,54); }
+  if(shield){ ctx.textAlign='center'; ctx.font='22px system-ui,sans-serif'; ctx.fillStyle='#39d0ff';
+    ctx.strokeText('🛡',W/2,32); ctx.fillText('🛡',W/2,32); }
 }
 function panel(lines){
   ctx.fillStyle='rgba(18,28,26,.55)'; const w=460,h=132,x=(W-w)/2,y=(H-h)/2-6;
@@ -340,14 +359,23 @@ function frame(){
   update();
   if(shake>0.4) ctx.translate((Math.random()*2-1)*shake,(Math.random()*2-1)*shake);
   bg();
-  for(const e of ents){ if(e.k==='berry') drawBerry(ctx,e.x,e.y); else drawBat(ctx,e.x,e.y, t*0.3+e.f); }
+  for(const e of ents){ if(e.k==='bat') drawBat(ctx,e.x,e.y, t*0.3+e.f); else drawBerry(ctx,e.x,e.y, e.k==='gold'); }
   const blink=(t%240)<8?0:1;
+  const flashing = invuln>0 && Math.floor(t/3)%2===0;
+  if(flashing) ctx.globalAlpha=0.4;
   drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, hat:hatOn, open:(state==='over'?0:blink), sx:1+sq*0.6, sy:1-sq});
+  ctx.globalAlpha=1;
+  if(shield){ const pu=1+Math.sin(t*0.18)*0.03;
+    ctx.save(); ctx.translate(dinoX-4, groundY+dy-92); ctx.scale(pu,pu);
+    ctx.fillStyle='rgba(120,225,255,.13)'; ctx.beginPath(); ctx.ellipse(0,0,78,116,0,0,TAU); ctx.fill();
+    ctx.strokeStyle='rgba(60,205,255,.85)'; ctx.lineWidth=3; ctx.beginPath(); ctx.ellipse(0,0,78,116,0,0,TAU); ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1.6; ctx.beginPath(); ctx.ellipse(-22,-34,18,28,0,Math.PI*1.05,Math.PI*1.65); ctx.stroke();
+    ctx.restore(); }
   drawParticles();
   if(hitFlash>0){ ctx.fillStyle='rgba(229,56,78,'+(hitFlash/40)+')'; ctx.fillRect(-20,-20,W+40,H+40); hitFlash--; }
   hud();
   if(state==='menu'){ const L=[['🍓 Strawberry Dash','bold 26px']];
-    if(challenge>0) L.push(['🔥 Beat '+challenge+'!','bold 18px','#ffd27a']); else L.push(['Eat strawberries · dodge the bats 🦇','500 15px','#dfe']);
+    if(challenge>0) L.push(['🔥 Beat '+challenge+'!','bold 18px','#ffd27a']); else L.push(['Eat 🍓 · dodge 🦇 · grab the ✨gold✨ for a 🛡','500 14px','#dfe']);
     L.push(['Tap / click / Space to play','bold 17px','#bfe3ff']); panel(L); }
   if(state==='over'){ const beat=challenge>0 && lastScore>challenge;
     panel([[newBest?'🎉 NEW BEST! 🎉':(beat?'🎉 You beat '+challenge+'!':'Game Over'),'bold 26px', (newBest||beat)?'#ffe08a':'#fff'],
