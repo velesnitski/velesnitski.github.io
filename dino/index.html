@@ -30,7 +30,9 @@
   input[type=color]{width:40px;height:26px;border:0;background:none;cursor:pointer;padding:0}
   .foot{opacity:.4;font-size:12px;margin:6px 16px 30px;line-height:1.6}
   a{color:#7fb0ff}
-  #pname{width:74px;height:26px;border-radius:6px;border:0;padding:0 6px;text-align:center;font-weight:600}
+  #pname{background:#2a3344;border:0;color:#fff;padding:9px 14px;border-radius:9px;font-size:13px;font-weight:600;width:118px;text-align:center}
+  #pname::placeholder{color:#9fb0c0}
+  #pname:focus{outline:2px solid #2b6cff}
   .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(18px);
     background:#22a05a;color:#fff;padding:10px 18px;border-radius:10px;font-weight:600;font-size:14px;
     opacity:0;pointer-events:none;transition:.3s;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.4)}
@@ -68,7 +70,7 @@
     <button class="alt" id="challenge">⚔️ Challenge</button>
     <button class="alt" id="pause">⏸ Pause</button>
     <button class="alt" id="mute">🔊 Sound</button>
-    <label>Name<input type="text" id="pname" maxlength="12" placeholder="you"></label>
+    <input type="text" id="pname" maxlength="12" placeholder="✏ name" title="your name">
   </div>
 
   <div class="toast" id="toast"></div>
@@ -193,24 +195,36 @@ function drawDino(ctx, cx, footY, s, o){
   ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.lineCap='round';
   legs.filter(L=>!L.far).forEach(L=>{ for(let d=-1;d<=1;d+=2){ ctx.beginPath(); ctx.moveTo(L.fx+d*5,L.fy-2); ctx.lineTo(L.fx+d*5,L.fy+7); ctx.stroke(); } });
   if(o.socks){ legs.filter(L=>!L.far).forEach(L=>{ ctx.save();
-    ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,10,0,0,TAU); ctx.clip();
-    ctx.fillStyle='#fff'; ctx.fillRect(L.fx-12,L.fy-13,36,27);
-    ctx.fillStyle='#e5384e'; for(let i=0;i<3;i++) ctx.fillRect(L.fx-12,L.fy-6+i*7,36,3);
+    ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,11,0,0,TAU); ctx.clip();
+    ctx.fillStyle='#fff'; ctx.fillRect(L.fx-12,L.fy-15,36,32);
+    ctx.fillStyle='#39a0ff'; ctx.fillRect(L.fx-12,L.fy-15,36,5);                    // cuff
+    ctx.fillStyle='#e5384e'; for(let i=0;i<3;i++) ctx.fillRect(L.fx-12,L.fy-7+i*6,36,3); // stripes
+    ctx.fillStyle='#ffd166'; ctx.beginPath(); ctx.ellipse(L.fx+10,L.fy+6,8,6,0,0,TAU); ctx.fill(); // toe cap
     ctx.restore();
-    ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.5; ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,10,0,0,TAU); ctx.stroke(); }); }
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.5; ctx.beginPath(); ctx.ellipse(L.fx+5,L.fy,16,11,0,0,TAU); ctx.stroke(); }); }
   if(o.armour){ ctx.save(); ctx.beginPath(); ctx.ellipse(2,-66,46,43,0,0,TAU); ctx.clip();
-    const ag=ctx.createLinearGradient(0,-96,0,-34); ag.addColorStop(0,'#dbe1ea'); ag.addColorStop(1,'#8790a2');
-    ctx.beginPath(); ctx.ellipse(14,-58,30,36,0,0,TAU); ctx.fillStyle=ag; ctx.fill(); ctx.strokeStyle='#5f6a7c'; ctx.lineWidth=2.4; ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(14,-90); ctx.lineTo(14,-24); ctx.stroke();
-    ctx.fillStyle='#5f6a7c'; [[4,-74],[24,-74],[4,-44],[24,-44]].forEach(([rx,ry])=>{ ctx.beginPath(); ctx.arc(rx,ry,2.4,0,TAU); ctx.fill(); });
-    ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.ellipse(4,-72,6,13,-.3,0,TAU); ctx.fill(); ctx.restore();
-    ctx.beginPath(); ctx.ellipse(-16,-92,15,12,0,0,TAU); ctx.lineJoin='round'; ctx.lineWidth=6; ctx.strokeStyle=OUTLINE; ctx.stroke(); ctx.fillStyle='#b9c1cd'; ctx.fill(); }
-  if(o.tailspike){ const sx=-90,sy=-94; ctx.strokeStyle='#7d8794'; ctx.lineWidth=4; ctx.lineCap='round';
-    for(let a=0;a<8;a++){ const an=a/8*TAU; ctx.beginPath(); ctx.moveTo(sx+Math.cos(an)*5,sy+Math.sin(an)*5); ctx.lineTo(sx+Math.cos(an)*12,sy+Math.sin(an)*12); ctx.stroke(); }
-    ctx.fillStyle='#aab3c0'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx,sy,8,0,TAU); ctx.fill(); ctx.stroke(); }
-  if(o.tailbow){ const bx=-70,by=-90; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.lineJoin='round'; ctx.fillStyle='#ff5c8a';
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-15,by-10); ctx.lineTo(bx-15,by+10); ctx.closePath(); ctx.stroke(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+15,by-10); ctx.lineTo(bx+15,by+10); ctx.closePath(); ctx.stroke(); ctx.fill();
+    const ag=ctx.createLinearGradient(0,-98,0,-32); ag.addColorStop(0,'#eef2f7'); ag.addColorStop(.55,'#bcc5d3'); ag.addColorStop(1,'#7d8798');
+    ctx.beginPath(); ctx.ellipse(14,-58,31,37,0,0,TAU); ctx.fillStyle=ag; ctx.fill();
+    ctx.strokeStyle='#e0b23a'; ctx.lineWidth=4; ctx.stroke();
+    ctx.strokeStyle='#5f6a7c'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.ellipse(14,-58,31,37,0,0,TAU); ctx.stroke();
+    ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.moveTo(14,-46); ctx.bezierCurveTo(2,-53,4,-67,14,-63); ctx.bezierCurveTo(24,-67,26,-53,14,-46); ctx.fill();
+    ctx.fillStyle='#4bae5a'; ctx.beginPath(); ctx.ellipse(14,-65,7,3,0,0,TAU); ctx.fill();
+    ctx.fillStyle='#ffe08a'; [[10,-57],[18,-57],[14,-51]].forEach(([sx,sy])=>{ ctx.beginPath(); ctx.arc(sx,sy,1,0,TAU); ctx.fill(); });
+    ctx.fillStyle='#e0b23a'; [[-8,-70],[36,-70],[-8,-46],[36,-46]].forEach(([rx,ry])=>{ ctx.beginPath(); ctx.arc(rx,ry,2.6,0,TAU); ctx.fill(); });
+    ctx.fillStyle='rgba(255,255,255,.6)'; ctx.beginPath(); ctx.ellipse(2,-74,6,14,-.3,0,TAU); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.ellipse(-16,-92,15,12,0,0,TAU); ctx.lineJoin='round'; ctx.lineWidth=6; ctx.strokeStyle=OUTLINE; ctx.stroke();
+    const pg=ctx.createLinearGradient(-30,-104,-2,-80); pg.addColorStop(0,'#eef2f7'); pg.addColorStop(1,'#8790a2'); ctx.fillStyle=pg; ctx.fill();
+    ctx.strokeStyle='#e0b23a'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(-16,-92,9,0,TAU); ctx.stroke();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(-16,-104); ctx.lineTo(-16,-112); ctx.stroke(); ctx.fillStyle='#9aa7b4'; ctx.beginPath(); ctx.arc(-16,-113,2.6,0,TAU); ctx.fill(); }
+  if(o.tailspike){ const sx=97,sy=-101; ctx.strokeStyle='#7d8794'; ctx.lineWidth=4; ctx.lineCap='round';
+    for(let a=0;a<8;a++){ const an=a/8*TAU; ctx.beginPath(); ctx.moveTo(sx+Math.cos(an)*6,sy+Math.sin(an)*6); ctx.lineTo(sx+Math.cos(an)*15,sy+Math.sin(an)*15); ctx.stroke(); }
+    ctx.fillStyle='#aab3c0'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx,sy,9,0,TAU); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(sx-3,sy-3,3,0,TAU); ctx.fill(); }
+  if(o.tailbow){ const bx=76,by=-88; ctx.lineCap='round';
+    ctx.strokeStyle='#ff5c8a'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx-4,by+10,bx-9,by+17); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+4,by+10,bx+9,by+17); ctx.stroke();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.lineJoin='round'; ctx.fillStyle='#ff5c8a';
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-15,by-10); ctx.lineTo(bx-15,by+10); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+15,by-10); ctx.lineTo(bx+15,by+10); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.arc(bx,by,4.5,0,TAU); ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=OUTLINE; ctx.stroke(); }
 
   ctx.restore();
@@ -462,7 +476,9 @@ function update(){
   else if(jumpBuf>0 && air && !diving){ diving=true; vel=Math.max(vel,20); jumpBuf=0; sq=-0.2; sfxDive(); missionEvent('dive',1); }
   if(air){ vel+=0.86; dy+=vel; if(dy>=0){ dy=0; vel=0; air=false;
     if(diving){ diving=false; sq=0.3; diveSlam(dinoX); shake=7; sfxLand();
-      if(tailspikeOn){ for(const e of ents){ if(e.k==='bat' && !e.dead && Math.abs(e.x-dinoX)<92 && e.y>groundY-72){ e.dead=true; score+=5; combo++; hitBurst(e.x,e.y); } } } }
+      if(tailspikeOn){ shake=11; parts.push({ring:1,x:dinoX,y:groundY+2,r:12,vr:10,life:22,c:'rgba(120,225,255,.85)'});
+        let hh=0; for(const e of ents){ if((e.k==='bat'||e.k==='rock') && !e.dead && Math.abs(e.x-dinoX)<125 && e.y>groundY-100){ e.dead=true; score+=5; hh++; hitBurst(e.x,e.y); } }
+        if(hh){ combo+=hh; comboTimer=tailbowOn?300:200; pop('💥 x'+hh,dinoX,groundY+dy-104,'#39d0ff'); sfxHit(); } } }
     else { sq=0.22; dust(dinoX); } } }
   if(!boss){ spawnT--; if(spawnT<=0) spawnT=spawn(); }
   if(invuln>0) invuln--; if(magnet>0) magnet--;
