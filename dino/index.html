@@ -154,8 +154,14 @@ function drawDino(ctx, cx, footY, s, o){
     ctx.beginPath(); ctx.ellipse(-71,-147,12,9,-.14,0,TAU); ctx.fill(); ctx.stroke();
     ctx.lineWidth=3.4; ctx.beginPath(); ctx.moveTo(-60,-152); ctx.lineTo(-46,-155); ctx.stroke();
     ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-83,-148); ctx.lineTo(-85,-149); ctx.stroke();
-    ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=2.6; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(-77,-150); ctx.lineTo(-69,-145); ctx.stroke();
+    const gx=-71+Math.sin(o.t*0.09)*7;   // glint sweeps across the lens
+    ctx.save(); ctx.beginPath(); ctx.ellipse(-71,-147,12,9,-.14,0,TAU); ctx.clip();
+      ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(gx-4,-152); ctx.lineTo(gx+4,-142); ctx.stroke();
+    ctx.restore();
+    if((o.t%210)<10){ const k=1-((o.t%210)/10), r=3+k*3, sx=-63,sy=-151;   // periodic cool ✦ twinkle
+      ctx.strokeStyle='rgba(255,255,255,'+(0.45+0.5*k)+')'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(sx-r,sy); ctx.lineTo(sx+r,sy); ctx.moveTo(sx,sy-r); ctx.lineTo(sx,sy+r); ctx.stroke(); }
   } else if(open<0.2){
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=4; ctx.lineCap='round';
     ctx.beginPath(); ctx.arc(-71,-146,7,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
@@ -164,8 +170,15 @@ function drawDino(ctx, cx, footY, s, o){
     ctx.fillStyle='#fff'; ctx.beginPath(); ctx.ellipse(-73,-150,1.9,2,0,0,TAU); ctx.fill();
   }
   ctx.fillStyle=OUTLINE; ctx.beginPath(); ctx.ellipse(-91,-149,2,2.4,0,0,TAU); ctx.fill();
-  ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.8; ctx.lineCap='round';
-  ctx.beginPath(); ctx.moveTo(-90,-138); ctx.quadraticCurveTo(-82,-133,-74,-137); ctx.stroke();
+  const mouth=o.mouth||0;
+  if(mouth>0.15){   // open jaw — chomping a berry / excited mid-air
+    ctx.fillStyle='#7a2233'; ctx.beginPath(); ctx.ellipse(-83,-135,6,2.4+mouth*5,0,0,TAU); ctx.fill();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.stroke();
+    ctx.fillStyle='#f0839a'; ctx.beginPath(); ctx.ellipse(-83,-132+mouth*2,3.2,1.4+mouth*2,0,0,TAU); ctx.fill();
+  } else {
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.8; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-90,-138); ctx.quadraticCurveTo(-82,-133,-74,-137); ctx.stroke();
+  }
 
   if(o.hat && o.hat!=='none'){ const hx=-62;
     if(o.hat==='panama' || o.hat===true){
@@ -220,10 +233,10 @@ function drawDino(ctx, cx, footY, s, o){
     ctx.strokeStyle='#e0b23a'; ctx.lineWidth=2.5; ctx.beginPath(); ctx.arc(-16,-92,9,0,TAU); ctx.stroke();
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(-16,-104); ctx.lineTo(-16,-112); ctx.stroke(); ctx.fillStyle='#9aa7b4'; ctx.beginPath(); ctx.arc(-16,-113,2.6,0,TAU); ctx.fill(); }
   if(o.tailspike){ const sx=97,sy=-101; ctx.strokeStyle='#7d8794'; ctx.lineWidth=4; ctx.lineCap='round';
-    for(let a=0;a<8;a++){ const an=a/8*TAU; ctx.beginPath(); ctx.moveTo(sx+Math.cos(an)*6,sy+Math.sin(an)*6); ctx.lineTo(sx+Math.cos(an)*15,sy+Math.sin(an)*15); ctx.stroke(); }
+    for(let a=0;a<8;a++){ const an=a/8*TAU+o.t*0.05; ctx.beginPath(); ctx.moveTo(sx+Math.cos(an)*6,sy+Math.sin(an)*6); ctx.lineTo(sx+Math.cos(an)*15,sy+Math.sin(an)*15); ctx.stroke(); }
     ctx.fillStyle='#aab3c0'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(sx,sy,9,0,TAU); ctx.fill(); ctx.stroke();
     ctx.fillStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(sx-3,sy-3,3,0,TAU); ctx.fill(); }
-  if(o.tailbow){ const bx=76,by=-88; ctx.lineCap='round';
+  if(o.tailbow){ const bw=Math.sin(o.t*0.2); const bx=76+bw*1.6, by=-88-Math.abs(bw)*3; ctx.lineCap='round';   // bow bobs & sways
     ctx.strokeStyle='#ff5c8a'; ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx-4,by+10,bx-9,by+17); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+4,by+10,bx+9,by+17); ctx.stroke();
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.lineJoin='round'; ctx.fillStyle='#ff5c8a';
     ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-15,by-10); ctx.lineTo(bx-15,by+10); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -314,7 +327,11 @@ let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0, so
 const STAT0={runs:0,berries:0,bosses:0,jumps:0,dives:0,bestCombo:0,nearMiss:0,best:0};
 let stats=(()=>{ try{ return Object.assign({},STAT0,JSON.parse(localStorage.getItem('dinoStats')||'{}')); }catch(e){ return Object.assign({},STAT0); } })();
 function saveStats(){ localStorage.setItem('dinoStats',JSON.stringify(stats)); }
-let beatBest=false;
+let beatBest=false, chomp=0;
+// ---- meta progression: player level / XP (long-term pull) ----
+let xp=+(localStorage.getItem('dinoXP')||0), luckyBonus=0, dailyBanner=null;
+function xpToNext(l){ return 120+(l-1)*70; }
+function levelInfo(v){ let l=1,need=xpToNext(1),acc=0; while(v>=acc+need && l<99){ acc+=need; l++; need=xpToNext(l); } return {lvl:l,into:v-acc,need}; }
 const RARITY={ common:{c:'#9aa7b4',n:'Common'}, rare:{c:'#4a9fe0',n:'Rare'}, epic:{c:'#b06bd8',n:'Epic'}, legendary:{c:'#ffb02e',n:'Legendary'} };
 function hslHex(h,s,l){ h=((h%360)+360)%360/360; const a=s*Math.min(l,1-l); const f=n=>{ const k=(n+h*12)%12; const c=l-a*Math.max(-1,Math.min(k-3,Math.min(9-k,1))); return Math.round(255*c).toString(16).padStart(2,'0'); }; return '#'+f(0)+f(8)+f(4); }
 const SKINS=[
@@ -375,6 +392,10 @@ function saveMissions(){ localStorage.setItem('dinoMissions',JSON.stringify({dat
 function bumpStreak(){ const today=todayStr(); let sd={}; try{ sd=JSON.parse(localStorage.getItem('dinoStreak'))||{}; }catch(e){}
   if(sd.last===today) return; const y=new Date(); y.setDate(y.getDate()-1);
   streak=(sd.last===dstr(y))?((sd.count||0)+1):1; localStorage.setItem('dinoStreak',JSON.stringify({count:streak,last:today})); }
+function claimDaily(){ const today=todayStr(); let d={}; try{ d=JSON.parse(localStorage.getItem('dinoDaily'))||{}; }catch(e){}
+  if(d.last===today) return; const y=new Date(); y.setDate(y.getDate()-1);
+  const day=(d.last===dstr(y))?((d.day||0)+1):1, bonus=Math.min(15+(day-1)*10,75);   // escalating login reward
+  wallet+=bonus; saveCloset(); localStorage.setItem('dinoDaily',JSON.stringify({last:today,day})); dailyBanner={day,bonus}; }
 function missionEvent(type,amount){ if(!missions.length) return; let ch=false;
   missions.forEach(m=>{ if(m.done||m.type!==type) return;
     if(type==='score'||type==='combo'){ m.prog=Math.max(m.prog,amount); if(amount>=m.goal){ m.done=true; ch=true; } }
@@ -428,25 +449,36 @@ async function shareChallenge(){ initAudio(); const sc=lastScore||hi, url=GAME_U
 }
 
 function missionPanel(){
-  const w=372, rowH=23, info=1, h=34+info*22+missions.length*rowH+34, x=(W-w)/2, y=(H-h)/2-2;
+  const li=levelInfo(xp);
+  const w=372, rowH=23, headH=96, footH=30, h=headH+missions.length*rowH+footH, x=(W-w)/2, y=(H-h)/2-2;
   ctx.fillStyle='rgba(18,28,26,.68)'; ctx.beginPath(); ctx.roundRect(x,y,w,h,16); ctx.fill();
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 23px system-ui,sans-serif'; ctx.fillText('🍓 Strawberry Dash',W/2,y+28);
-  ctx.font='bold 13px system-ui,sans-serif'; ctx.fillStyle='#ffd27a';
-  ctx.fillText(challenge>0 ? ('🔥 a friend dares you — beat '+challenge+'!') : ('📋 daily · 🔥 '+streak+'d streak · 🍓 '+wallet+' saved'+(weather!=='clear'?' · '+wxEmoji():'')), W/2, y+48);
+  ctx.font='bold 13px system-ui,sans-serif'; ctx.fillStyle=dailyBanner?'#ffe08a':'#ffd27a';
+  ctx.fillText(dailyBanner ? ('🎁 Daily Day '+dailyBanner.day+' — +'+dailyBanner.bonus+'🍓!  🔥 '+streak+'d') : (challenge>0 ? ('🔥 a friend dares you — beat '+challenge+'!') : ('📋 daily · 🔥 '+streak+'d streak · 🍓 '+wallet+' saved'+(weather!=='clear'?' · '+wxEmoji():''))), W/2, y+48);
+  // ---- level progress bar (the visible long-term goal) ----
+  const bx=x+22, bw=w-44, byy=y+64;
+  ctx.textAlign='left'; ctx.font='bold 12px system-ui,sans-serif'; ctx.fillStyle='#ffd54a'; ctx.fillText('⭐ Level '+li.lvl, bx, byy-2);
+  ctx.textAlign='right'; ctx.font='600 11px system-ui,sans-serif'; ctx.fillStyle='#9fb0c0'; ctx.fillText(li.into+' / '+li.need+' XP', bx+bw, byy-2);
+  ctx.fillStyle='rgba(255,255,255,.14)'; ctx.beginPath(); ctx.roundRect(bx,byy,bw,8,4); ctx.fill();
+  const fw=Math.max(4,bw*Math.min(1,li.into/li.need)), bg=ctx.createLinearGradient(bx,0,bx+bw,0); bg.addColorStop(0,'#ffd54a'); bg.addColorStop(1,'#ff8a3d');
+  ctx.fillStyle=bg; ctx.beginPath(); ctx.roundRect(bx,byy,fw,8,4); ctx.fill();
   ctx.font='600 14px system-ui,sans-serif';
-  missions.forEach((m,i)=>{ const yy=y+72+i*rowH; ctx.textAlign='left'; ctx.fillStyle=m.done?'#7fe0a0':'#e8eef5';
+  missions.forEach((m,i)=>{ const yy=y+headH+i*rowH; ctx.textAlign='left'; ctx.fillStyle=m.done?'#7fe0a0':'#e8eef5';
     ctx.fillText((m.done?'✓ ':m.icon+' ')+m.text, x+22, yy);
     ctx.textAlign='right'; ctx.fillStyle=m.done?'#7fe0a0':'#9fb0c0'; ctx.fillText(m.done?'✓':(m.prog+'/'+m.goal), x+w-22, yy); });
   ctx.textAlign='center'; ctx.fillStyle='#bfe3ff'; ctx.font='bold 16px system-ui,sans-serif'; ctx.fillText('Tap / click / Space to play', W/2, y+h-14);
 }
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; beatBest=false; }
-function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); stats.runs++; saveStats(); }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; beatBest=false; chomp=0; }
+function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); stats.runs++; saveStats(); dailyBanner=null; }
 function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
   wallet+=runBerries; saveCloset();
   stats.berries+=runBerries; if(lastScore>stats.best) stats.best=lastScore; saveStats();
+  const xgain=Math.floor(lastScore/2)+runBerries, preLvl=levelInfo(xp).lvl; xp+=xgain; localStorage.setItem('dinoXP',xp);
+  const postLvl=levelInfo(xp).lvl; if(postLvl>preLvl){ const rw=postLvl*10; wallet+=rw; saveCloset(); confetti(); toast('⭐ LEVEL '+postLvl+'! +'+rw+'🍓'); }
+  luckyBonus=(Math.random()<0.22)?(5+Math.floor(Math.random()*16)):0; if(luckyBonus){ wallet+=luckyBonus; saveCloset(); }
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
   if(newBest){ confetti(); sfxWin(); } vibe(120); }
 function action(){ initAudio();
@@ -484,6 +516,7 @@ function update(){
   if(Math.floor(score/100)>lastMile){ lastMile++; mileFlash=14; speed=Math.min(9.2,speed+0.25); pop(lastMile*100+'!',dinoX,groundY+dy-104,'#ffd54a'); sfxMile(); vibe(20); }
   if(!beatBest && hi>0 && score>hi){ beatBest=true; toast('🏆 New best!'); confetti(); sfxMile(); vibe(30); }
   if(combo>stats.bestCombo) stats.bestCombo=combo;
+  if(chomp>0) chomp--;
   if(comboTimer>0 && --comboTimer===0) combo=0;
   if(!boss && score>=nextBoss) spawnBoss();
   if(challenge>0 && !challengePassed && score>challenge){ challengePassed=true; toast('🔥 Passed '+challenge+'!'); sfxBerry(2); }
@@ -505,7 +538,7 @@ function update(){
     if(e.k==='bat'){ if(e.bt==='wave') e.y=e.baseY+Math.sin(t*0.09+e.f)*22;
       else if(e.bt==='swoop'){ const d=Math.abs(e.x-dinoX); e.y=e.baseY+Math.max(0,1-d/170)*((groundY-34)-e.baseY); } }
     if(magnet>0 && (e.k==='berry'||e.k==='gold') && !e.got){ const mx=dcx-e.x, my=dcy-e.y; if(mx*mx+my*my<300*300){ e.x+=mx*0.16; e.y+=my*0.16; } }
-    if((e.k==='berry'||e.k==='gold'||e.k==='mag')&&!e.got){ const dx=e.x-dcx, dyy=e.y-dcy; if(dx*dx+dyy*dyy<52*52){ e.got=true; runBerries++;
+    if((e.k==='berry'||e.k==='gold'||e.k==='mag')&&!e.got){ const dx=e.x-dcx, dyy=e.y-dcy; if(dx*dx+dyy*dyy<52*52){ e.got=true; runBerries++; chomp=9;
       if(e.k==='gold'){ score+=15; goldSparkle(e.x,e.y); sfxPower();
         if(!shield){ shield=true; pop('🛡 SHIELD!',dcx,dcy-74,'#39d0ff'); } else pop('+15',e.x,e.y-10,'#ffcf3a'); missionEvent('shield',1); }
       else if(e.k==='mag'){ score+=10; magnet=300; goldSparkle(e.x,e.y); sfxPower(); pop('🧲 MAGNET!',dcx,dcy-74,'#4aa3ff'); missionEvent('magnet',1); }
@@ -763,10 +796,11 @@ function frame(){
   bg();
   for(const e of ents){ if(e.k==='bat') drawBat(ctx,e.x,e.y, t*0.3+e.f); else if(e.k==='rock') drawRock(e.x,e.y,e.tall); else drawBerry(ctx,e.x,e.y, e.k); }
   const blink=(t%240)<8?0:1;
+  const mouthOpen=P.has('chomp')?1:(chomp>0?Math.min(1,chomp/7):((air&&state==='play')?0.5:0));
   const flashing = invuln>0 && Math.floor(t/3)%2===0;
   if(flashing) ctx.globalAlpha=0.4;
   if(rainbow){ bodyHex=hslHex(t*2,0.62,0.6); plateHex=hslHex(t*2+50,0.55,0.75); }
-  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, hat:hatOn, open:(state==='over'?0:blink), sx:1+sq*0.6, sy:1-sq});
+  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, hat:hatOn, open:(state==='over'?0:blink), mouth:(state==='over'?0:mouthOpen), sx:1+sq*0.6, sy:1-sq});
   ctx.globalAlpha=1;
   if(shield){ const pu=1+Math.sin(t*0.18)*0.04;
     ctx.save(); ctx.translate(dinoX-4, groundY+dy-92); ctx.scale(pu,pu);
@@ -793,10 +827,12 @@ function frame(){
   if(state==='menu') missionPanel();
   if(state==='over'){ const beat=challenge>0 && lastScore>challenge;
     const medal=lastScore>=500?'🥇':lastScore>=250?'🥈':lastScore>=100?'🥉':'';
+    const li=levelInfo(xp), gap=hi-lastScore, soClose=!newBest && hi>0 && lastScore>0 && gap<=Math.max(15,hi*0.12);
+    const foot=(t-overAt<=52)?'saving score…':(soClose?('😤 SO close — '+(gap+1)+' more! Tap for one more'):'Tap to retry · ⚔️ Challenge below');
     bigPanel([[(medal?medal+' ':'')+(newBest?'NEW BEST!':(beat?'You beat '+challenge+'!':'Game Over')),'bold 24px',(newBest||beat||medal)?'#ffe08a':'#fff'],
       ['Score '+lastScore+' · Best '+hi,'500 16px','#dfe'],
-      ['🍓 +'+runBerries+' earned · '+wallet+' saved','500 13px','#ffd27a'],
-      ['🏃 Run #'+stats.runs+' · ✨ best combo x'+stats.bestCombo+' · 📊 stats in Closet','500 11px','#a9bcd0']], (t-overAt>52?'Tap to retry · ⚔️ Challenge below':'saving score…')); }
+      ['🍓 +'+runBerries+(luckyBonus?' · 🎁 +'+luckyBonus+' lucky!':'')+' earned · '+wallet+' saved','500 13px','#ffd27a'],
+      ['⭐ Lv '+li.lvl+' · 🏃 Run #'+stats.runs+' · ✨ x'+stats.bestCombo+' · 📊 Closet','500 11px','#a9bcd0']], foot); }
   if(paused && state==='play') panel([['⏸ Paused','bold 26px'],['tap to resume · P','bold 15px','#bfe3ff']]);
   requestAnimationFrame(frame);
 }
@@ -888,6 +924,7 @@ document.getElementById('closet').onclick=openCloset;
 document.getElementById('closetClose').onclick=()=>document.getElementById('closetModal').classList.remove('show');
 document.querySelectorAll('.modalTabs .tab').forEach(tb=>tb.onclick=()=>{ closetTab=tb.dataset.tab; document.querySelectorAll('.modalTabs .tab').forEach(x=>x.classList.toggle('on',x===tb)); renderShop(); });
 applyEquip(); initMissions(); initWeather();
+if(!cardMode){ claimDaily(); if(dailyBanner){ confetti(); toast('🎁 Daily reward · Day '+dailyBanner.day+' · +'+dailyBanner.bonus+'🍓'); } }
 const nameEl=document.getElementById('pname'); nameEl.value=pName;
 nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); };
 paintMute();
