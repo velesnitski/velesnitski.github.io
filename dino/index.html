@@ -461,7 +461,7 @@ let shadesOn=false, hatOn=false, t=0;
 let state='menu', score=0, hi=+(localStorage.getItem('dinoHi')||0), speed=4;
 let ents=[], spawnT=50, dy=0, vel=0, air=false, hitFlash=0, lastScore=0, challengePassed=false;
 let coyote=0, jumpBuf=0, sq=0, combo=0, comboTimer=0, shake=0, newBest=false, parts=[], pops=[], shield=false, invuln=0, magnet=0, justPlacedIdx=-1, diving=false, lastMile=0, paused=false, mileFlash=0;
-let boss=null, nextBoss=220, bossCount=0, fightCount=0, overAt=0;
+let boss=null, nextBoss=200, bossCount=0, fightCount=0, overAt=0;
 const P=new URLSearchParams(location.hash.replace(/^#/,''));
 const demo=P.has('demo'), cardMode=P.has('card');
 let challenge=Math.max(0,Math.floor(+P.get('c')||0));
@@ -658,7 +658,7 @@ function missionPanel(){
 }
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=220; bossCount=0; fightCount=0; beatBest=false; chomp=0; heat=0; runTier=0; }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=200; bossCount=0; fightCount=0; lastBoss=''; beatBest=false; chomp=0; heat=0; runTier=0; }
 function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); stats.runs++; saveStats(); dailyBanner=null; }
 function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14; shake=12; combo=0; sq=0.35; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
@@ -775,17 +775,20 @@ function makeBoss(type,hp,mega){
   const y = type==='worm'?groundY+30 : type==='crow'?groundY-150 : type==='queen'?groundY-130 : (type==='crab'||type==='tortoise')?groundY-16 : groundY-118;
   return {type, hp, hp0:hp, mega, x:W+100, y, hx:dinoX, hy:y, hy0:groundY+30, trail:[], phase:type==='worm'?'hidden':'enter', pt:0, inv:0, age:0, bounces:0};
 }
+let lastBoss='';
 function spawnBoss(){ bossCount++;
   ents.forEach(e=>{ if((e.k==='bat'||e.k==='rock')&&!e.dead){ e.dead=true; sparkle(e.x,e.y); } });   // hazards flee — clean arena for the duel
-  if(bossCount%3===0){ boss=makeBoss('tortoise',1,false); toast('🐢 Granny Tortoise! Bounce on her shell 3×!'); sfxPower(); return; }
-  if(bossCount%4===0){ boss=makeBoss('queen',4,true); toast('👑 THE DARK QUEEN! jump her twirl — stomp her when dizzy!'); sfxHit(); return; }   // the arch-villain owns the mega slot
-  const type = FIGHTS[fightCount++%FIGHTS.length];
+  if(!localStorage.getItem('dinoQueenMet') && bossCount===2){ localStorage.setItem('dinoQueenMet','1'); lastBoss='queen';   // guaranteed debut — she comes to size you up herself
+    boss=makeBoss('queen',4,true); toast('👑 THE DARK QUEEN herself has come! jump her twirl — stomp her when dizzy!'); sfxHit(); return; }
+  if(bossCount%3===2 && lastBoss!=='tortoise' && lastBoss!=='queen'){ lastBoss='tortoise'; boss=makeBoss('tortoise',1,false); toast('🐢 Granny Tortoise! Bounce on her shell 3×!'); sfxPower(); return; }
+  if(bossCount%4===3 && lastBoss!=='queen'){ lastBoss='queen'; boss=makeBoss('queen',4,true); toast('👑 THE DARK QUEEN! jump her twirl — stomp her when dizzy!'); sfxHit(); return; }   // the arch-villain, every ~4th
+  const type = FIGHTS[fightCount++%FIGHTS.length]; lastBoss=type;
   const hp = type==='crab'?2:(bossCount<=2?2:3);   // the crab is the friendly tutorial boss — always 2
   boss=makeBoss(type,hp,false);
   const NAME={worm:'🪱 WORM BOSS! bop its head '+hp+'×', bat:'🦇 BOSS! jump on it '+hp+'×',
     crab:'🦀 CRAB BOSS! stomp it '+hp+'× — jump the claw-jab, don’t stomp the 🛡!', crow:'🐦‍⬛ CROW BOSS! it fakes dives — dodge the real one, stomp the crash!'};
   toast(NAME[type]); }
-function endBoss(){ nextBoss=Math.floor(score)+Math.max(200, 300-bossCount*20); }   // tight cadence — the cast actually gets seen
+function endBoss(){ nextBoss=Math.floor(score)+Math.max(150, 240-bossCount*20); }   // tight cadence — the cast actually gets seen
 function bossHit(b){ b.hp--; b.inv=40; vel=-13; diving=false; air=true; hitstop=5; shake=12; hitBurst(b.hx||b.x,b.hy||b.y); shieldPop(b.hx||b.x,b.hy||b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
   if(b.hp<=0){ b.phase='defeat'; b.pt=0; const rw=b.mega?80:30; score+=b.mega?120:50; wallet+=rw; saveCloset(); stats.bosses++; saveStats(); endBoss(); confetti(); sfxWin(); toast(b.mega?'🏆 CHAMPION! +'+rw+' 🍓':'💥 BOSS DOWN! +'+rw+' 🍓'); vibe(120); } }
 function bossShieldEat(b){ shield=false; invuln=48; b.inv=26; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); }
@@ -855,21 +858,22 @@ function updateCrab(b){ b.pt++; b.age++; if(b.inv>0) b.inv--; if(b.bcd>0) b.bcd-
 }
 function updateTortoise(b){ b.pt++; b.age++; if(b.squish>0) b.squish--;
   const gy=groundY-16; b.y=gy+(b.phase==='nap'?0.5:Math.sin(b.age*0.15)*1.2);
-  if(b.phase==='enter'){ b.x-=3.6; if(b.x<W-190){ b.phase='stroll'; b.pt=0; } }
-  else if(b.phase==='stroll'){ b.x-=2.0;
-    if(!b.napped && b.pt>70 && Math.random()<0.02){ b.phase='nap'; b.pt=0; b.napped=1; }   // one granny nap per visit
+  if(b.phase==='enter'){ b.x-=4.4; if(b.x<W-190){ b.phase='stroll'; b.pt=0; } }
+  else if(b.phase==='stroll'){ b.x-=(b.spd||2.8);   // brisk granny — and quicker after every bounce
+    if(!b.napped && b.pt>60 && Math.random()<0.02){ b.phase='nap'; b.pt=0; b.napped=1; }   // one granny nap per visit (your easy window)
+    if(b.pt>0 && b.pt%90===0) pop('♪',b.x-4,b.y-56,'#a8d8ff');   // hums as she goes
     if(b.x<-80){ boss=null; endBoss(); if(!b.bounces) toast('🐢 aww… next time bounce on my shell!'); return; } }
   else if(b.phase==='nap'){ if(b.pt%30===0) pop('z',b.x-6+Math.random()*12,b.y-52,'#9fb0c0');
-    if(b.pt>95){ b.phase='stroll'; b.pt=0; } }
+    if(b.pt>70){ b.phase='stroll'; b.pt=0; } }
   else if(b.phase==='zoom'){ b.x-=14; if(b.pt%3===0) dust(b.x+30);   // spinning-shell exit — SHE'S OFF!
     if(b.x<-80){ boss=null; endBoss(); return; } }
   if(b.phase!=='zoom' && air && vel>0 && b.bounces<3){   // bounce on her shell = berry piñata!
     const feet=groundY+dy;
     if(Math.abs(b.x-dinoX)<42 && feet>b.y-64 && feet<b.y+10){
       const woke=(b.phase==='nap');
-      b.bounces++; b.squish=14; vel=-15; diving=false; sq=0.25; hitstop=2; chomp=9;
-      runBerries+=3; score+=10; sparkle(b.x,b.y-40); sfxBerry(b.bounces+2); vibe(25); missionEvent('berry',3);
-      for(let i=0;i<3;i++) ents.push({k:'berry', x:b.x-10+i*46, y:b.y-96-Math.sin(i/2*Math.PI)*34, got:false});   // berries fly out of the shell
+      b.bounces++; b.squish=14; b.spd=(b.spd||2.8)+0.9; vel=-15; diving=false; sq=0.25; hitstop=2; chomp=9;   // each bounce spooks her faster
+      runBerries+=2; score+=10; sparkle(b.x,b.y-40); sfxBerry(b.bounces+2); vibe(25); missionEvent('berry',2);
+      for(let i=0;i<3;i++) ents.push({k:'berry', x:b.x+84+i*54, y:groundY-102-((i*37)%64), got:false});   // berries scatter AHEAD & HIGH — jump to catch them
       const line=woke?'!?':['boing!','oho!!','tee-hee!'][b.bounces-1];
       pop(line+' 🍓🍓🍓', b.x, b.y-64, woke?'#ffd54a':'#e5384e');
       if(woke){ b.phase='stroll'; b.pt=0; }
@@ -1042,19 +1046,24 @@ function drawTortoise(b){ const s=b.mega?1.45:1.18, nap=(b.phase==='nap'), zoom=
   ctx.beginPath(); ctx.arc(hx,hy2,hr,0,TAU); ctx.fillStyle='#b7d98f'; ctx.fill(); ctx.strokeStyle=OUTLINE; ctx.lineWidth=3.2; ctx.stroke();
   if(nap){ ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.lineCap='round';   // fast asleep ˘˘
     ctx.beginPath(); ctx.arc(hx-3,hy2-2,3.2,Math.PI*0.1,Math.PI*0.9); ctx.stroke(); }
-  else { ctx.fillStyle='#182226'; ctx.beginPath(); ctx.ellipse(hx-3,hy2-2.5,3.4,4,0,0,TAU); ctx.fill();   // HUGE kawaii eye
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(hx-4.2,hy2-4,1.5,0,TAU); ctx.fill();
+  else { ctx.fillStyle='#182226'; ctx.beginPath(); ctx.ellipse(hx-3,hy2-2.5,4,4.8,0,0,TAU); ctx.fill();   // HUGE kawaii eye, dual sparkle
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(hx-4.6,hy2-4.2,1.8,0,TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(hx-1.4,hy2-0.8,0.9,0,TAU); ctx.fill();
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.4; ctx.beginPath();   // tiny lashes
-    ctx.moveTo(-2.8+hx,-7.6+hy2); ctx.lineTo(-4.4+hx,-9.4+hy2); ctx.moveTo(hx-0.6,hy2-7.2); ctx.lineTo(hx-1,hy2-9.4); ctx.stroke(); }
+    ctx.moveTo(-3+hx,-8.2+hy2); ctx.lineTo(-4.8+hx,-10.2+hy2); ctx.moveTo(hx-0.4,hy2-7.8); ctx.lineTo(hx-0.8,hy2-10.2); ctx.stroke(); }
   ctx.strokeStyle='#8a7a55'; ctx.lineWidth=1.7;   // granny wire spectacles (she naps in them)
   ctx.beginPath(); ctx.arc(hx-3,hy2-2.5,5.8,0,TAU); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(hx+2.8,hy2-3.5); ctx.lineTo(-19,-9); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(hx-8.8,hy2-3.2); ctx.lineTo(hx-11.5,hy2-5); ctx.stroke();
-  ctx.fillStyle='rgba(238,110,140,'+(nap?0.3:0.42)+')'; ctx.beginPath(); ctx.ellipse(hx-4,hy2+4,3.6,2.4,0,0,TAU); ctx.fill();   // blush
+  ctx.fillStyle='rgba(238,110,140,'+(nap?0.35:0.55)+')'; ctx.beginPath(); ctx.ellipse(hx-4.5,hy2+4,4.2,2.8,0,0,TAU); ctx.fill();   // rosy blush
   ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.8; ctx.beginPath();
   if(nap){ ctx.arc(hx-4,hy2+4.5,1.6,0,TAU); }   // tiny snore "o" mouth
-  else ctx.arc(hx-4,hy2+3,4,0.2*Math.PI,0.75*Math.PI);
+  else ctx.arc(hx-4,hy2+2.5,4.6,0.15*Math.PI,0.8*Math.PI);   // big happy smile
   ctx.stroke();
+  ctx.lineJoin='round'; ctx.fillStyle='#ff8fb0'; ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.6;   // tiny bow on the shell rim
+  ctx.beginPath(); ctx.moveTo(-22,-32); ctx.lineTo(-29,-37); ctx.lineTo(-28,-28); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(-22,-32); ctx.lineTo(-16,-38); ctx.lineTo(-14,-29); ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle='#e5648e'; ctx.beginPath(); ctx.arc(-21.5,-32.5,2.2,0,TAU); ctx.fill();
   ctx.restore(); }
 function drawCrow(b){ const s=b.mega?2.5:2.0, atk=(b.phase==='swoop'||b.phase==='feint'), dazed=(b.phase==='dazed'||b.phase==='crash');
   const flap=dazed?0.15:Math.sin(b.age*0.42);
