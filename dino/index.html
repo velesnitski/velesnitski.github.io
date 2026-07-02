@@ -682,7 +682,7 @@ function spawn(){
   if(r<0.07){ ents.push({k:'gold', x:W+40, y:groundY-84-Math.random()*54, got:false}); return base; }
   if(r<0.13){ ents.push({k:'mag', x:W+40, y:groundY-84-Math.random()*54, got:false}); return base; }
   if(score>250 && r<0.22){ ents.push({k:'rock', x:W+40, y:groundY-16, tall:Math.random()<0.35}); return base+12; }
-  if(r<0.55){ let bt='straight', by=groundY-30-Math.random()*46; const roll=Math.random();
+  if(r<0.55 && score>30){ let bt='straight', by=groundY-30-Math.random()*46; const roll=Math.random();   // ~6s berry-only warm-up before the first bat
     if(score>350 && roll<0.30){ bt='swoop'; by=groundY-96-Math.random()*28; }
     else if(score>150 && roll<0.60){ bt='wave'; by=groundY-40-Math.random()*40; }
     ents.push({k:'bat', x:W+40, y:by, baseY:by, bt, f:Math.random()*TAU}); return base; }
@@ -725,6 +725,11 @@ function update(){
         if(hh){ combo+=hh; comboTimer=tailbowOn?300:200; pop('💥 x'+hh,dinoX,groundY+dy-104,'#39d0ff'); sfxHit(); } } }
     else { sq=0.22; dust(dinoX); } } }
   if(!boss){ spawnT--; if(spawnT<=0) spawnT=spawn(); }
+  else { spawnT--; if(spawnT<=0){ spawnT=100+Math.random()*40;   // berry drip during boss fights (heat/shield stay alive; never hazards)
+    const r=Math.random();
+    if(r<0.06) ents.push({k:'gold',x:W+40,y:groundY-84-Math.random()*54,got:false});
+    else if(r<0.3){ const amp=60+Math.random()*30; for(let i=0;i<5;i++){ const f=i/4; ents.push({k:'berry',x:W+40+i*40,y:groundY-72-Math.sin(f*Math.PI)*amp,got:false}); } }
+    else ents.push({k:'berry',x:W+40,y:groundY-72-Math.random()*74,got:false}); } }
   if(invuln>0) invuln--; if(magnet>0) magnet--;
   const dcx=dinoX, dcy=groundY+dy-64;
   for(const e of ents){ e.x-=speed;
@@ -743,16 +748,16 @@ function update(){
         e.dead=true; score+=8; combo++; comboTimer=tailbowOn?300:200; heat=Math.min(100,heat+12); hitBurst(e.x,e.y); shieldPop(e.x,e.y);
         vel=-13; diving=false; air=true; hitstop=4; shake=9; sfxLand(); pop('SLAM! +8',dinoX,groundY+dy-96,'#ffd54a'); vibe(30); missionEvent('slam',1); missionEvent('combo',combo); }
       else if(hit && invuln<=0){
-        if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); } else over(); }
+        if(shield){ shield=false; invuln=48; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); } else over(); }
       else if(!e.passed && e.x<dinoX){ e.passed=true; if(air && (groundY+dy-8)<e.y && e.y-(groundY+dy-8)<50){ const nb=Math.round((shadesOn?6:3)*heatMult()); score+=nb; heat=Math.min(100,heat+16); pop('NICE! +'+nb,dinoX,groundY+dy-96,'#8fe0ff'); sfxNice(); missionEvent('nice',1); stats.nearMiss++; } } }
     else if(e.k==='rock' && !e.dead){ const top=e.y-(e.tall?26:16);
       if(Math.abs(e.x-dinoX)<26){
         if(diving && vel>2){ e.dead=true; score+=6; combo++; comboTimer=tailbowOn?300:200; heat=Math.min(100,heat+10); hitBurst(e.x,e.y); shieldPop(e.x,e.y); vel=-11; diving=false; air=true; hitstop=3; shake=9; pop('SMASH! +6',dinoX,groundY+dy-96,'#ffd54a'); sfxLand(); vibe(30); }
-        else if((groundY+dy-8)>top && invuln<=0){ if(shield){ shield=false; invuln=30; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); } else over(); } } }
+        else if((groundY+dy-8)>top && invuln<=0){ if(shield){ shield=false; invuln=48; e.dead=true; shieldPop(dcx,dcy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); } else over(); } } }
     else if(e.k==='pebble' && !e.dead){ e.vy+=0.5; e.y+=e.vy;   // crow's dropped pebble
       if(e.y>=groundY-8){ e.dead=true; dust(e.x); }
       else if(invuln<=0 && Math.abs(e.x-dinoX)<20 && Math.abs((groundY+dy-58)-e.y)<28){
-        e.dead=true; if(shield){ shield=false; invuln=30; shieldPop(dcx,dcy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); } else over(); } }
+        e.dead=true; if(shield){ shield=false; invuln=48; shieldPop(dcx,dcy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); } else over(); } }
   }
   ents=ents.filter(e=> e.x>-60 && !e.dead && !((e.k==='berry'||e.k==='gold'||e.k==='mag')&&e.got));
   if(boss) updateBoss();
@@ -763,6 +768,7 @@ function makeBoss(type,hp,mega){
   return {type, hp, hp0:hp, mega, x:W+100, y, hx:dinoX, hy:y, hy0:groundY+30, trail:[], phase:type==='worm'?'hidden':'enter', pt:0, inv:0, age:0, bounces:0};
 }
 function spawnBoss(){ bossCount++;
+  ents.forEach(e=>{ if((e.k==='bat'||e.k==='rock')&&!e.dead){ e.dead=true; sparkle(e.x,e.y); } });   // hazards flee — clean arena for the duel
   if(bossCount%3===0){ boss=makeBoss('tortoise',1,false); toast('🐢 Granny Tortoise! Bounce on her shell 3×!'); sfxPower(); return; }
   const mega = bossCount%4===0;
   const type = FIGHTS[fightCount++%FIGHTS.length];
@@ -774,7 +780,7 @@ function spawnBoss(){ bossCount++;
 function endBoss(){ nextBoss=Math.floor(score)+Math.max(320, 560-bossCount*40); }
 function bossHit(b){ b.hp--; b.inv=40; vel=-13; diving=false; air=true; hitstop=5; shake=12; hitBurst(b.hx||b.x,b.hy||b.y); shieldPop(b.hx||b.x,b.hy||b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
   if(b.hp<=0){ b.phase='defeat'; b.pt=0; const rw=b.mega?80:30; score+=b.mega?120:50; wallet+=rw; saveCloset(); stats.bosses++; saveStats(); endBoss(); confetti(); sfxWin(); toast(b.mega?'🏆 CHAMPION! +'+rw+' 🍓':'💥 BOSS DOWN! +'+rw+' 🍓'); vibe(120); } }
-function bossShieldEat(b){ shield=false; invuln=30; b.inv=26; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); }
+function bossShieldEat(b){ shield=false; invuln=48; b.inv=26; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); }
 function updateBoss(){ const b=boss; if(b.type==='worm'){ updateWorm(b); return; }
   if(b.type==='crab'){ updateCrab(b); return; }
   if(b.type==='tortoise'){ updateTortoise(b); return; }
@@ -857,8 +863,9 @@ function updateCrow(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
     if(b.pt>(b.mega?44:60)){ const r=Math.random(); b.pt=0;
       if(r<0.3) b.phase='dropfly'; else if(r<0.62){ b.phase='feint'; b.sx=b.x; } else b.phase='wind'; }
     if(b.age>2300){ b.phase='flee'; endBoss(); } }
-  else if(b.phase==='dropfly'){ b.x+=(dinoX+40-b.x)*0.08; b.y+=((b.hy-14)-b.y)*0.1;   // bombing run over your head
-    if(Math.abs(b.x-(dinoX+40))<12){ ents.push({k:'pebble',x:b.x,y:b.y+20,vy:2}); pop('CAW!',b.x,b.y-30,'#c9d4e8'); sfxDive(); b.phase='return'; b.pt=0; } }
+  else if(b.phase==='dropfly'){ const aim=dinoX+speed*15;   // lead the drop so the pebble crosses the player's column at body height
+    b.x+=(aim-b.x)*0.08; b.y+=((b.hy-14)-b.y)*0.1;
+    if(Math.abs(b.x-aim)<12){ ents.push({k:'pebble',x:b.x,y:b.y+20,vy:2}); pop('CAW!',b.x,b.y-30,'#c9d4e8'); sfxDive(); b.phase='return'; b.pt=0; } }
   else if(b.phase==='return'){ b.x+=(W-150-b.x)*0.07; b.y+=(b.hy-b.y)*0.07; if(b.pt>40){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='feint'){ const dur=44, k=Math.min(1,b.pt/dur), s=Math.sin(k*Math.PI);   // fake dive — pulls up early
     b.x=b.sx+(dinoX+40-b.sx)*s*0.8; b.y=b.hy+((groundY-120)-b.hy)*s;
