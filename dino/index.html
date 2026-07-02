@@ -510,6 +510,14 @@ let beatBest=false, chomp=0, runTier=0;
 // ---- MK3 "Toasty!" homage: dad's face peeks from the corner ----
 let yoT=0, yoCd=0;
 function maybeYohoo(p){ if(yoT>0 || yoCd>0 || cardMode) return; if(Math.random()<p){ yoT=96; yoCd=2400; sfxYohoo(); vibe(20); } }
+// ---- self-hosted telemetry (fully OFF until TELEMETRY_EP is set — see telemetry/README.md) ----
+const TELEMETRY_EP='';   // e.g. 'https://stats.example.com/t' on your own server; '' = no network calls at all
+let dinoSid=''; try{ dinoSid=localStorage.getItem('dinoSid')||''; if(!dinoSid){ dinoSid=Math.random().toString(36).slice(2,10); localStorage.setItem('dinoSid',dinoSid); } }catch(e){}
+let lastPing=0;
+function ping(ev){ if(!TELEMETRY_EP) return;
+  const now=Date.now(); if(ev!=='load' && now-lastPing<60000) return; lastPing=now;   // max 1 gameplay ping/min
+  try{ navigator.sendBeacon(TELEMETRY_EP, JSON.stringify({ ev, v:43, sid:dinoSid, sc:lastScore|0, hi:hi|0, runs:stats.runs, lvl:levelInfo(xp).lvl,
+    ua:navigator.userAgent.slice(0,180), lang:navigator.language||'', tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||''), scr:screen.width+'x'+screen.height })); }catch(e){} }
 const TIER_AT=[0,150,300,500,800], TIER_NAME=['','💨 SPEEDY!','🎽 HEADBAND!','✨ GOLDEN!','🔥 BLAZING!'];
 function runTierOf(sc){ let n=0; for(let i=1;i<TIER_AT.length;i++) if(sc>=TIER_AT[i]) n=i; return n; }
 // ---- meta progression: player level / XP (long-term pull) ----
@@ -705,6 +713,7 @@ function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14;
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
   const newAchv=checkAchv(); if(newAchv.length){ confetti(); toast('🏅 '+newAchv[0].name+'!'+(newAchv.length>1?' +'+(newAchv.length-1)+' more':'')); }
   setTimeout(prepareCard,120);   // pre-render the share card so a Share tap can fire natively in-gesture
+  ping('over');
   if(newBest){ confetti(); sfxWin(); } vibe(120); }
 function action(){ initAudio();
   if(paused){ paused=false; return; }
@@ -1529,6 +1538,7 @@ applyEquip(); initMissions(); initWeather();
 if(!cardMode){ claimDaily(); if(dailyBanner){ confetti(); toast('🎁 Daily reward · Day '+dailyBanner.day+' · +'+dailyBanner.bonus+'🍓'); } }
 checkAchv();   // backfill already-earned badges silently
 if(!cardMode) setTimeout(prepareCard,300);   // warm the share-card cache at boot
+if(!cardMode) ping('load');
 const nameEl=document.getElementById('pname'); nameEl.value=pName;
 nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); clearTimeout(nameEl._pc); nameEl._pc=setTimeout(prepareCard,500); };
 paintMute();
