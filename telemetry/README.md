@@ -1,8 +1,25 @@
-# Strawberry Dash — self-hosted telemetry (no third parties)
+# Strawberry Dash — telemetry
 
 The game ships with a **dormant** beacon: `TELEMETRY_EP` in `dino/index.html` is an
-empty string, so **no network call is ever made** until you point it at your own
-endpoint. Everything here is Python stdlib — nothing to install.
+empty string, so **no network call is ever made** until you point it at an endpoint.
+
+## Option A (chosen): Google Sheet as the db — zero servers, zero client tokens
+
+The Sheet's Apps Script web app accepts unauthenticated POSTs and appends rows;
+the credential lives inside Google (the script runs as the owner), never in the
+public JS. Worst case, accepted: junk rows.
+
+1. Open the Sheet → Extensions → Apps Script → paste **`apps-script.gs`** → save.
+2. Deploy → New deployment → **Web app** · Execute as **Me** · access **Anyone**.
+3. Set `TELEMETRY_EP='https://script.google.com/macros/s/…/exec'` in `dino/index.html`.
+4. Keep the **Sheet itself private** — only the /exec URL is public.
+
+`doGet` on the same URL returns today's aggregates as JSON (future "players today"
+in-game display). Analysis = the Sheet: `COUNTUNIQUE`, pivots, charts.
+
+## Option B (alternative): self-hosted collector (no third parties at all)
+
+Python stdlib only — nothing to install.
 
 ## How it works
 
@@ -37,10 +54,17 @@ location /t { proxy_pass http://127.0.0.1:8787/t; proxy_set_header X-Forwarded-F
 # 3. flip the game on: set in dino/index.html
 const TELEMETRY_EP='https://YOUR-HOST/t';
 
-# 4. nightly aggregates → repo
-17 3 * * * cd /path/to/repo/telemetry && python3 aggregate.py && \
-  git add temp-agg.db stats.csv && git commit -m "telemetry: daily aggregates" && git push
+# 4. nightly aggregates → PRIVATE repo velesnitski/dash-stats
+17 3 * * *  /path/to/repo/telemetry/push-private.sh
 ```
+
+Aggregates live in the **private** `velesnitski/dash-stats` repo (history, diffs,
+access control — nothing on the public site). `push-private.sh` needs either
+`gh auth login` on the box or a write deploy key (see script header).
+
+> Note: GitHub — private repo or not — cannot *receive* beacons from browsers;
+> there is no unauthenticated write, and a token embedded in public JS is
+> harvested and auto-revoked within minutes. That's why step 1 exists.
 
 ```ini
 # /etc/systemd/system/dash-telemetry.service
