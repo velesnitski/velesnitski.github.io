@@ -798,8 +798,8 @@ function updateWorm(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
 function updateCrab(b){ b.pt++; b.age++; if(b.inv>0) b.inv--; if(b.bcd>0) b.bcd--;
   const gy=groundY-16;
   if(b.phase==='enter'){ b.x-=4.6; b.y=gy; if(b.x<W-170){ b.phase='shuffle'; b.pt=0; } }
-  else if(b.phase==='shuffle'){ const tx=dinoX+180;   // comedic sidle — claws DOWN, stompable
-    b.x+=(tx-b.x)*0.02+Math.sin(b.age*0.12)*1.6; b.y=gy-Math.abs(Math.sin(b.age*0.3))*3;
+  else if(b.phase==='shuffle'){   // claws DOWN, stompable — and he keeps CLOSING IN on you
+    b.x=Math.max(dinoX+26, b.x-(b.mega?1.15:0.95)+Math.sin(b.age*0.12)*1.4); b.y=gy-Math.abs(Math.sin(b.age*0.3))*3;
     if(b.age%50===0) parts.push({x:b.x-14,y:b.y-26,vx:-0.4,vy:-0.9,g:-0.008,life:34,r:2.5,c:'rgba(170,220,255,.7)'});   // bubbles
     if(b.pt>(b.mega?66:88)){ b.phase='guard'; b.pt=0; }
     if(b.age>2100){ b.phase='flee'; endBoss(); } }
@@ -807,13 +807,14 @@ function updateCrab(b){ b.pt++; b.age++; if(b.inv>0) b.inv--; if(b.bcd>0) b.bcd-
     if(b.pt>(b.mega?42:56)){ b.phase='shuffle'; b.pt=0; } }
   else if(b.phase==='defeat'){ b.y-=6; b.x+=4; if(b.y<-100) boss=null; return; }
   else if(b.phase==='flee'){ b.x+=5; b.y=gy; if(b.x>W+90) boss=null; return; }
-  const r=b.mega?42:34;
-  if(Math.abs(b.x-dinoX)<r && Math.abs((groundY+dy-58)-(b.y-14))<r){
-    if(air && b.phase==='guard'){ if(b.bcd<=0){ b.bcd=20; vel=-12; diving=false; hitstop=2;   // blocked!
-      pop('CLACK!',b.x,b.y-64,'#c9d4e8'); shieldPop(b.x,b.y-40); sfxNice(); vibe(15); } }
-    else if(air){ if(b.inv<=0) bossHit(b); }
-    else if(shield) bossShieldEat(b);
-    else if(invuln<=0) over(); }
+  const r=b.mega?46:38, feet=groundY+dy;
+  if(Math.abs(b.x-dinoX)<r){
+    if(air && vel>0 && feet>b.y-54 && feet<b.y+10){   // landing on him from above (feet-based)
+      if(b.phase==='guard'){ if(b.bcd<=0){ b.bcd=20; vel=-12; diving=false; hitstop=2;   // blocked!
+        pop('CLACK!',b.x,b.y-64,'#c9d4e8'); shieldPop(b.x,b.y-40); sfxNice(); vibe(15); } }
+      else if(b.inv<=0){ bossHit(b); b.x=Math.min(W-80,b.x+80); } }   // knocked back — re-approaches
+    else if(!air && Math.abs(b.x-dinoX)<r-8 && b.inv<=0 && invuln<=0){
+      if(shield) bossShieldEat(b); else over(); } }
 }
 function updateTortoise(b){ b.pt++; b.age++; if(b.squish>0) b.squish--;
   const gy=groundY-16; b.y=gy+(b.phase==='nap'?0.5:Math.sin(b.age*0.15)*1.2);
@@ -826,8 +827,8 @@ function updateTortoise(b){ b.pt++; b.age++; if(b.squish>0) b.squish--;
   else if(b.phase==='zoom'){ b.x-=8; if(b.pt%6===0) dust(b.x+30);   // spinning-shell exit, wheee!
     if(b.x<-80){ boss=null; endBoss(); return; } }
   if(b.phase!=='zoom' && air && vel>0 && b.bounces<3){   // bounce on her shell = berries
-    const dcy=groundY+dy-58;
-    if(Math.abs(b.x-dinoX)<34 && dcy>b.y-62 && dcy<b.y-4){
+    const feet=groundY+dy;   // trigger right at the shell dome, not at ground level
+    if(Math.abs(b.x-dinoX)<36 && feet>b.y-52 && feet<b.y+8){
       const woke=(b.phase==='nap');
       b.bounces++; b.squish=14; vel=-15; diving=false; sq=0.25; hitstop=2; chomp=9;
       runBerries+=5; score+=10; sparkle(b.x,b.y-34); sfxBerry(b.bounces+2); vibe(25); missionEvent('berry',5);
