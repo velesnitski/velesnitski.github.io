@@ -1,7 +1,7 @@
 // Strawberry Dash service worker — NETWORK-FIRST so updates always win
 // (a cache-first SW would recreate the stale-version bug of ADR 0043).
 // Bump CACHE on every release alongside the footer version stamp.
-const CACHE = 'dash-v49';
+const CACHE = 'dash-v50';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE)
@@ -18,10 +18,12 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
   if (e.request.method !== 'GET' || u.origin !== location.origin) return;   // never intercept beacons/weather
+  const key = u.origin + u.pathname;                                        // canonical: one cache entry per path, not per ?query
   e.respondWith(
     fetch(e.request).then(r => {                       // fresh copy wins…
-      const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); return r;
-    }).catch(() => caches.match(e.request, { ignoreSearch: true })          // …cache saves you offline
-      .then(m => m || caches.match('./')))
+      if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(key, cp)); }   // never cache 404/503 — no poisoned offline fallback
+      return r;
+    }).catch(() => caches.match(key)                                        // …cache saves you offline
+      .then(m => m || (e.request.mode === 'navigate' ? caches.match('./') : undefined)))
   );
 });
