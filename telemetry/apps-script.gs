@@ -1,44 +1,64 @@
-/** Strawberry Dash telemetry — Google Apps Script backend (the "db" is your Sheet).
+/** Strawberry Dash telemetry v2 — Google Apps Script backend (the "db" is your Sheet).
  *
- * Setup (once, ~60s):
- *   1. Open the Sheet → Extensions → Apps Script → paste this file, save.
- *   2. Deploy → New deployment → type: Web app
- *        Execute as: Me · Who has access: Anyone
- *   3. Copy the .../exec URL → set TELEMETRY_EP in dino/index.html.
- *   4. Keep the Sheet itself PRIVATE — the web app runs as you; the game
- *      never touches the Sheet directly, only this endpoint.
+ * UPDATING AN EXISTING DEPLOYMENT (keeps the same /exec URL):
+ *   Extensions → Apps Script → replace code with this file → Save →
+ *   Deploy → Manage deployments → ✏️ edit → Version: "New version" → Deploy.
  *
- * Worst case (accepted): someone spams junk rows into the 'pings' tab.
+ * Fresh setup: Deploy → New deployment → Web app · Execute as Me · access Anyone.
+ * Keep the Sheet itself PRIVATE. Worst case (accepted): junk rows.
  */
 const TAB = 'pings';
+const HEADERS = ['ts','ev','v','sid','sc','hi','runs','lvl','ua','lang','tz','scr',
+                 'name','cause','dur','rb','tier','bk','cmb','skin','hat','wl','stk','item','price'];
+
+function sheet_(){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(TAB);
+  if(!sh){ sh = ss.insertSheet(TAB); sh.appendRow(HEADERS); }
+  if(String(sh.getRange(1,13).getValue()) === ''){                    // extend v1 header in place
+    sh.getRange(1,13,1,HEADERS.length-12).setValues([HEADERS.slice(12)]); }
+  return sh;
+}
+const S=(x,n)=>String(x==null?'':x).slice(0,n), N=x=>x|0;
 
 function doPost(e){
   try{
     const d = JSON.parse((e.postData && e.postData.contents) || '{}');
-    if(!d || (d.v|0) < 43) return out_('skip');            // drop garbage / ancient builds
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sh = ss.getSheetByName(TAB);
-    if(!sh){ sh = ss.insertSheet(TAB);
-      sh.appendRow(['ts','ev','v','sid','sc','hi','runs','lvl','ua','lang','tz','scr']); }
-    sh.appendRow([ new Date(),
-      String(d.ev||'').slice(0,12),  d.v|0,  String(d.sid||'').slice(0,16),
-      d.sc|0, d.hi|0, d.runs|0, d.lvl|0,
-      String(d.ua||'').slice(0,200), String(d.lang||'').slice(0,16),
-      String(d.tz||'').slice(0,48),  String(d.scr||'').slice(0,16) ]);
+    if(!d || (d.v|0) < 43) return out_('skip');                       // drop garbage / ancient builds
+    sheet_().appendRow([ new Date(),
+      S(d.ev,12), N(d.v), S(d.sid,16), N(d.sc), N(d.hi), N(d.runs), N(d.lvl),
+      S(d.ua,200), S(d.lang,16), S(d.tz,48), S(d.scr,16),
+      S(d.name,12).replace(/[^\w \-\.]/g,''), S(d.cause,40), N(d.dur),
+      N(d.rb), N(d.tier), N(d.bk), N(d.cmb), S(d.skin,12), S(d.hat,12),
+      N(d.wl), N(d.stk), S(d.item,14), N(d.price) ]);
   }catch(err){ /* never fail the beacon */ }
   return out_('ok');
 }
 
-/** GET = today's aggregates as JSON — lets the game show "players today" later. */
+/** GET → today's stats + all-time world top-10 (cached 5 min). */
 function doGet(){
+  const cache = CacheService.getScriptCache(), hit = cache.get('agg');
+  if(hit) return json_(JSON.parse(hit));
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB);
-  if(!sh || sh.getLastRow() < 2) return json_({date:new Date().toDateString(), pings:0, players:0, best:0});
-  const rows = sh.getRange(2,1,sh.getLastRow()-1,5).getValues();
-  const today = new Date().toDateString();
-  const t = rows.filter(r => r[0] && new Date(r[0]).toDateString() === today);
-  return json_({ date: today, pings: t.length,
-    players: [...new Set(t.map(r => r[3]))].length,
-    best: t.reduce((m,r) => Math.max(m, r[4]|0), 0) });
+  const res = { date:new Date().toDateString(), pings:0, players:0, best:0, wbest:null, top:[] };
+  if(sh && sh.getLastRow() > 1){
+    const rows = sh.getRange(2,1,sh.getLastRow()-1,14).getValues();   // ts..cause
+    const today = new Date().toDateString(), bySid = {};
+    for(const r of rows){
+      const isToday = r[0] && new Date(r[0]).toDateString() === today;
+      if(isToday){ res.pings++; if(r[4]>res.best) res.best=r[4]|0; }
+      if(r[1] === 'over' && (r[4]|0) > 0){
+        const sid = String(r[3]), sc = r[4]|0, nm = String(r[12]||'').slice(0,10) || 'dino';
+        if(!bySid[sid] || sc > bySid[sid].sc) bySid[sid] = { n:nm, sc:sc };
+      }
+    }
+    const todaySids = new Set(rows.filter(r=>r[0] && new Date(r[0]).toDateString()===today).map(r=>String(r[3])));
+    res.players = todaySids.size;
+    res.top = Object.values(bySid).sort((a,b)=>b.sc-a.sc).slice(0,10);
+    res.wbest = res.top[0] || null;
+  }
+  cache.put('agg', JSON.stringify(res), 300);
+  return json_(res);
 }
 
 function out_(s){ return ContentService.createTextOutput(s); }
