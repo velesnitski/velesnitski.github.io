@@ -801,7 +801,7 @@ function updateBoss(){ const b=boss; if(b.type==='worm'){ updateWorm(b); return;
   else if(b.phase==='wind'){ b.y=b.hy-Math.min(24,b.pt*1.4); if(b.pt>(b.mega?18:26)){ b.phase='swoop'; b.pt=0; b.sx=b.x; } }
   else if(b.phase==='swoop'){ const dur=b.mega?48:58, k=Math.min(1,b.pt/dur), s=Math.sin(k*Math.PI); b.x=b.sx+(dinoX+30-b.sx)*s; b.y=(b.hy-24)+((groundY-34)-(b.hy-24))*s; if(b.pt>dur){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='defeat'||b.phase==='flee'){ b.y-=6; b.x+=3; if(b.y<-100) boss=null; return; }
-  const bw=b.mega?52:40, bh=b.mega?58:48;
+  const bw=b.mega?56:46, bh=b.mega?62:54;   // generous — the bop is the bat's only damage path
   if(b.inv<=0 && Math.abs(b.x-dinoX)<bw && Math.abs((groundY+dy-58)-b.y)<bh){
     if(air) bossHit(b); else if(shield) bossShieldEat(b); else if(invuln<=0) over(); }
 }
@@ -893,17 +893,17 @@ function updateCrow(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
   else if(b.phase==='wind'){ b.y-=1.6; if(b.pt>(b.mega?16:22)){ b.phase='swoop'; b.pt=0; b.sx=b.x; b.sy=b.y; b.shp=b.hp; } }
   else if(b.phase==='swoop'){ const dur=Math.max(28,Math.round((b.mega?44:54)/speedUp)), k=Math.min(1,b.pt/dur), s=Math.sin(k*Math.PI);
     b.x=b.sx+(dinoX+20-b.sx)*s; b.y=b.sy+((groundY-32)-b.sy)*s;
-    if(b.pt>dur){ if(b.hp===b.shp && Math.random()<(b.mega?0.35:0.55)){ b.phase='crash'; b.pt=0; b.vy=2; }   // whiffed! loses control
-      else { b.phase='hover'; b.pt=0; } } }
+    if(b.pt===Math.round(dur*0.55) && b.hp===b.shp && Math.random()<(b.mega?0.35:0.55)){ b.phase='crash'; b.pt=0; b.vy=2; }   // whiffs at the BOTTOM — face-plants right beside you
+    else if(b.pt>dur){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='crash'){ b.vy+=0.9; b.y+=b.vy; b.x-=1.2;   // face-plant incoming
     if(b.y>=groundY-20){ b.y=groundY-20; b.phase='dazed'; b.pt=0; dust(b.x); shake=Math.max(shake,7); pop('@_@',b.x,b.y-46,'#c9d4e8'); sfxLand(); vibe(30); } }
   else if(b.phase==='dazed'){ b.y=groundY-20;   // sitting duck — free stomp!
     if(b.pt>(b.mega?55:75)){ b.phase='recover'; b.pt=0; pop('ahem.',b.x,b.y-44,'#c9d4e8'); } }
   else if(b.phase==='recover'){ b.x+=(W-150-b.x)*0.06; b.y+=(b.hy-b.y)*0.08; if(b.pt>50){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='defeat'||b.phase==='flee'){ b.y-=6; b.x+=4; if(b.y<-100) boss=null; return; }
-  const bw=b.mega?50:38, bh=b.mega?54:44;
-  if(b.phase==='dazed'||b.phase==='crash'){   // dazed birds don't bite — but they can be bopped
-    if(b.inv<=0 && air && Math.abs(b.x-dinoX)<bw && Math.abs((groundY+dy-58)-b.y)<bh+12){
+  const bw=b.mega?50:38, bh=b.mega?54:44, cfeet=groundY+dy;
+  if(b.phase==='dazed'||b.phase==='crash'){   // dazed birds don't bite — but they can be bopped (feet-based, wide)
+    if(b.inv<=0 && air && vel>0 && Math.abs(b.x-dinoX)<bw+8 && cfeet>b.y-60 && cfeet<b.y+20){
       pop('CAW?!',b.x,b.y-58,'#c9d4e8'); bossHit(b); if(b.hp>0){ b.phase='recover'; b.pt=0; } } }
   else if(b.inv<=0 && Math.abs(b.x-dinoX)<bw && Math.abs((groundY+dy-58)-b.y)<bh){
     if(air) bossHit(b); else if(shield) bossShieldEat(b); else if(invuln<=0) over(); }
