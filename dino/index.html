@@ -46,6 +46,8 @@
   .modalTabs{display:flex;gap:8px;margin-bottom:10px}
   .modalTabs .tab{background:#2a3344;border:0;color:#cdd6e2;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600}
   .modalTabs .tab.on{background:#2b6cff;color:#fff}
+  .sbtn{flex:1;background:#2b6cff;border:0;color:#fff;padding:11px 12px;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;min-width:104px}
+  .sbtn.alt2{background:#2a3344;color:#dfe7f2}
   .shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
   .card{background:#1c2536;border-radius:12px;padding:8px;text-align:center}
   .card canvas{width:90px;height:80px;display:block;margin:0 auto;background:#cfe6df;border-radius:8px}
@@ -79,6 +81,16 @@
     <div class="modalHead">🎽 Closet <span id="walletLbl">🍓 0</span> <button id="closetClose">✕</button></div>
     <div class="modalTabs"><button class="tab on" data-tab="skin">Dinos</button><button class="tab" data-tab="hat">Hats</button><button class="tab" data-tab="gear">Gear</button><button class="tab" data-tab="achv">🏅</button><button class="tab" data-tab="stats">📊</button></div>
     <div class="shop" id="shop"></div>
+  </div></div>
+
+  <div class="modal" id="shareModal"><div class="modalBox" style="width:min(430px,94vw)">
+    <div class="modalHead">📤 Share your dino <button id="shareClose" style="margin-left:auto;background:#2a3344;border:0;color:#fff;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:15px">✕</button></div>
+    <img id="shareImg" alt="result card" style="width:100%;border-radius:10px;display:block;margin-bottom:12px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="sbtn" id="shCopyLink">🔗 Copy link</button>
+      <button class="sbtn alt2" id="shCopyImg">🖼 Copy image</button>
+      <button class="sbtn alt2" id="shSave">⬇️ Save card</button>
+    </div>
   </div></div>
 
   <div class="foot">Made for the kids · works on phones &amp; tablets · <a href="../">home</a></div>
@@ -657,6 +669,7 @@ function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14;
   luckyBonus=(Math.random()<0.22)?(5+Math.floor(Math.random()*16)):0; if(luckyBonus){ wallet+=luckyBonus; saveCloset(); }
   if(lastScore>0) recordScore(lastScore); else justPlacedIdx=-1;
   const newAchv=checkAchv(); if(newAchv.length){ confetti(); toast('🏅 '+newAchv[0].name+'!'+(newAchv.length>1?' +'+(newAchv.length-1)+' more':'')); }
+  setTimeout(prepareCard,120);   // pre-render the share card so a Share tap can fire natively in-gesture
   if(newBest){ confetti(); sfxWin(); } vibe(120); }
 function action(){ initAudio();
   if(paused){ paused=false; return; }
@@ -1277,21 +1290,34 @@ function buildCard(){
   return c;
 }
 
+// --- share: pre-rendered card cache (navigator.share must fire inside the click gesture,
+//     so the PNG has to be ready BEFORE the tap — an async toBlob inside the handler loses activation on iOS)
+let cardCache={key:'',blob:null,file:null};
+function cardKey(){ return [lastScore,hi,pName,equip.skin,equip.hat,JSON.stringify(equip.gear||{})].join('|'); }
+function prepareCard(){ return new Promise(res=>{ const k=cardKey();
+  if(cardCache.key===k && cardCache.blob) return res(cardCache);
+  buildCard().toBlob(b=>{ cardCache={key:k, blob:b, file:(b&&typeof File!=='undefined')?new File([b],'strawberry-dash.png',{type:'image/png'}):null}; res(cardCache); },'image/png'); }); }
+function shareBits(){ const sc=lastScore||hi;
+  const url=GAME_URL+(sc?('#c='+(hi||sc)):'');
+  const text=sc?((pName?pName+' ':'I ')+'scored '+sc+' in Strawberry Dash 🦕🍓 (best '+hi+')! Can you beat me?')
+              :'Meet my dino in Strawberry Dash 🦕🍓!';
+  return {url,text}; }
 async function shareResult(){ initAudio();
-  const sc=lastScore||hi;
-  const url=GAME_URL+'#c='+(hi||sc);
-  const who=pName?pName+' ':'I ';
-  const text=who+'scored '+(lastScore||hi)+' in Strawberry Dash 🦕🍓 (best '+hi+')! Can you beat me? Play: '+GAME_URL;
-  buildCard().toBlob(async(blob)=>{
-    const file=blob? new File([blob],'strawberry-dash.png',{type:'image/png'}):null;
-    try{
-      if(file && navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],text,title:'Strawberry Dash',url}); return; }
-      if(navigator.share){ await navigator.share({text,title:'Strawberry Dash',url}); return; }
-    }catch(e){ if(e && e.name==='AbortError') return; }
-    try{ await navigator.clipboard.writeText(text+' '+url); toast('Result + link copied! 📋'); }
-    catch(e){ toast('Copy: '+url); }
-    if(blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='strawberry-dash.png'; a.click(); }
-  },'image/png');
+  const {url,text}=shareBits();
+  const c=(cardCache.key===cardKey() && cardCache.blob)?cardCache:await prepareCard();   // warm 99% of the time
+  try{
+    if(c.file && navigator.canShare && navigator.canShare({files:[c.file]})){
+      await navigator.share({files:[c.file], title:'Strawberry Dash', text:text+' '+url});   // link rides inside the text — iOS drops `url` next to `files`
+      return; }
+    if(navigator.share){ await navigator.share({title:'Strawberry Dash', text, url}); return; }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  openShareSheet(c);   // desktop / unsupported: deliberate picker instead of a surprise download
+}
+function openShareSheet(c){
+  const img=document.getElementById('shareImg');
+  if(c.blob){ if(img.dataset.u) URL.revokeObjectURL(img.dataset.u); const u=URL.createObjectURL(c.blob); img.src=u; img.dataset.u=u; }
+  document.getElementById('shCopyImg').style.display=(navigator.clipboard && navigator.clipboard.write && window.ClipboardItem)?'':'none';
+  document.getElementById('shareModal').classList.add('show'); if(state==='play') paused=true;
 }
 
 async function shareLink(){ initAudio();
@@ -1306,7 +1332,7 @@ async function shareLink(){ initAudio();
 const stage=document.getElementById('stage');
 stage.addEventListener('click', action);
 stage.addEventListener('touchstart', e=>{ e.preventDefault(); action(); }, {passive:false});
-addEventListener('keydown', e=>{ if((e.target&&e.target.tagName==='INPUT') || document.getElementById('closetModal').classList.contains('show')) return;
+addEventListener('keydown', e=>{ if((e.target&&e.target.tagName==='INPUT') || document.getElementById('closetModal').classList.contains('show') || document.getElementById('shareModal').classList.contains('show')) return;
   if(e.code==='Space'||e.code==='ArrowUp'){ e.preventDefault(); action(); } else if(e.code==='KeyP'||e.code==='Escape'){ if(state==='play') paused=!paused; } });
 
 const mBtn=document.getElementById('mute');
@@ -1317,13 +1343,20 @@ document.getElementById('challenge').onclick=shareChallenge;
 document.getElementById('pause').onclick=()=>{ if(state==='play') paused=!paused; };
 document.addEventListener('visibilitychange',()=>{ if(document.hidden && state==='play') paused=true; });
 document.getElementById('closet').onclick=openCloset;
-document.getElementById('closetClose').onclick=()=>document.getElementById('closetModal').classList.remove('show');
+document.getElementById('closetClose').onclick=()=>{ document.getElementById('closetModal').classList.remove('show'); prepareCard(); };
+document.getElementById('shareClose').onclick=()=>document.getElementById('shareModal').classList.remove('show');
+document.getElementById('shCopyLink').onclick=async()=>{ const {url,text}=shareBits();
+  try{ await navigator.clipboard.writeText(text+' '+url); toast('Link copied! 🔗'); }catch(e){ toast(url); } };
+document.getElementById('shCopyImg').onclick=async()=>{ try{ await navigator.clipboard.write([new ClipboardItem({'image/png':cardCache.blob})]); toast('Card copied — paste it anywhere! 🖼'); }
+  catch(e){ toast('Copy not supported here — use Save ⬇️'); } };
+document.getElementById('shSave').onclick=()=>{ if(!cardCache.blob) return; const a=document.createElement('a'); a.href=URL.createObjectURL(cardCache.blob); a.download='strawberry-dash.png'; a.click(); toast('Card saved! ⬇️'); };
 document.querySelectorAll('.modalTabs .tab').forEach(tb=>tb.onclick=()=>{ closetTab=tb.dataset.tab; document.querySelectorAll('.modalTabs .tab').forEach(x=>x.classList.toggle('on',x===tb)); renderShop(); });
 applyEquip(); initMissions(); initWeather();
 if(!cardMode){ claimDaily(); if(dailyBanner){ confetti(); toast('🎁 Daily reward · Day '+dailyBanner.day+' · +'+dailyBanner.bonus+'🍓'); } }
 checkAchv();   // backfill already-earned badges silently
+if(!cardMode) setTimeout(prepareCard,300);   // warm the share-card cache at boot
 const nameEl=document.getElementById('pname'); nameEl.value=pName;
-nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); };
+nameEl.oninput=e=>{ pName=e.target.value.slice(0,12); localStorage.setItem('dinoName',pName); clearTimeout(nameEl._pc); nameEl._pc=setTimeout(prepareCard,500); };
 paintMute();
 if(demo) state='play';
 if(P.has('fx')){ confetti(); sparkle(320,180); pop('+25',320,168,'#e5384e'); pop('x5',258,120,'#ffb300'); }
@@ -1337,6 +1370,7 @@ if(P.has('boss')){ state='play'; const bt=P.get('boss'), worm=(bt==='worm'), meg
               : {type:'bat',hp:mega?5:3,hp0:mega?5:3,mega,x:560,y:groundY-110,hy:groundY-110,phase:'hover',pt:0,inv:0,age:0}; }
 if(P.has('seed')) localStorage.setItem('dinoBoard', JSON.stringify([{name:'MILA',score:412},{name:'LEO',score:388},{name:'you',score:240},{name:'MILA',score:150},{name:'LEO',score:96}]));
 if(P.get('tier')) runTier=Math.min(4,+P.get('tier')||0);
+if(P.has('share')){ lastScore=lastScore||248; prepareCard().then(c=>openShareSheet(c)); }
 if(P.has('ko')){ state='over'; overAt=t-60; lastScore=123; }
 requestAnimationFrame(frame);
 </script>
