@@ -756,7 +756,7 @@ function spawnBoss(){ bossCount++;
   const hp = mega?5 : (bossCount<=2?2:3);
   boss=makeBoss(type,hp,mega);
   const NAME={worm:'🪱 WORM BOSS! bop its head '+hp+'×', bat:'🦇 BOSS! jump on it '+hp+'×',
-    crab:'🦀 CRAB BOSS! stomp it '+hp+'× — not when claws are up 🛡!', crow:'🐦‍⬛ CROW BOSS! it fakes dives — bop it '+hp+'×!'};
+    crab:'🦀 CRAB BOSS! stomp it '+hp+'× — not when claws are up 🛡!', crow:'🐦‍⬛ CROW BOSS! it fakes dives — dodge the real one, stomp the crash!'};
   toast((mega?'👑 MEGA ':'')+NAME[type]); }
 function endBoss(){ nextBoss=Math.floor(score)+Math.max(320, 560-bossCount*40); }
 function bossHit(b){ b.hp--; b.inv=40; vel=-13; diving=false; air=true; hitstop=5; shake=12; hitBurst(b.hx||b.x,b.hy||b.y); shieldPop(b.hx||b.x,b.hy||b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
@@ -849,12 +849,22 @@ function updateCrow(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
   else if(b.phase==='feint'){ const dur=44, k=Math.min(1,b.pt/dur), s=Math.sin(k*Math.PI);   // fake dive — pulls up early
     b.x=b.sx+(dinoX+40-b.sx)*s*0.8; b.y=b.hy+((groundY-120)-b.hy)*s;
     if(b.pt>dur){ b.phase='hover'; b.pt=0; pop('CAW! 😜',b.x,b.y-28,'#c9d4e8'); } }
-  else if(b.phase==='wind'){ b.y-=1.6; if(b.pt>(b.mega?16:22)){ b.phase='swoop'; b.pt=0; b.sx=b.x; b.sy=b.y; } }
+  else if(b.phase==='wind'){ b.y-=1.6; if(b.pt>(b.mega?16:22)){ b.phase='swoop'; b.pt=0; b.sx=b.x; b.sy=b.y; b.shp=b.hp; } }
   else if(b.phase==='swoop'){ const dur=Math.max(28,Math.round((b.mega?44:54)/speedUp)), k=Math.min(1,b.pt/dur), s=Math.sin(k*Math.PI);
-    b.x=b.sx+(dinoX+20-b.sx)*s; b.y=b.sy+((groundY-32)-b.sy)*s; if(b.pt>dur){ b.phase='hover'; b.pt=0; } }
+    b.x=b.sx+(dinoX+20-b.sx)*s; b.y=b.sy+((groundY-32)-b.sy)*s;
+    if(b.pt>dur){ if(b.hp===b.shp && Math.random()<(b.mega?0.35:0.55)){ b.phase='crash'; b.pt=0; b.vy=2; }   // whiffed! loses control
+      else { b.phase='hover'; b.pt=0; } } }
+  else if(b.phase==='crash'){ b.vy+=0.9; b.y+=b.vy; b.x-=1.2;   // face-plant incoming
+    if(b.y>=groundY-20){ b.y=groundY-20; b.phase='dazed'; b.pt=0; dust(b.x); shake=Math.max(shake,7); pop('@_@',b.x,b.y-46,'#c9d4e8'); sfxLand(); vibe(30); } }
+  else if(b.phase==='dazed'){ b.y=groundY-20;   // sitting duck — free stomp!
+    if(b.pt>(b.mega?55:75)){ b.phase='recover'; b.pt=0; pop('ahem.',b.x,b.y-44,'#c9d4e8'); } }
+  else if(b.phase==='recover'){ b.x+=(W-150-b.x)*0.06; b.y+=(b.hy-b.y)*0.08; if(b.pt>50){ b.phase='hover'; b.pt=0; } }
   else if(b.phase==='defeat'||b.phase==='flee'){ b.y-=6; b.x+=4; if(b.y<-100) boss=null; return; }
   const bw=b.mega?50:38, bh=b.mega?54:44;
-  if(b.inv<=0 && Math.abs(b.x-dinoX)<bw && Math.abs((groundY+dy-58)-b.y)<bh){
+  if(b.phase==='dazed'||b.phase==='crash'){   // dazed birds don't bite — but they can be bopped
+    if(b.inv<=0 && air && Math.abs(b.x-dinoX)<bw && Math.abs((groundY+dy-58)-b.y)<bh+12){
+      pop('CAW?!',b.x,b.y-58,'#c9d4e8'); bossHit(b); if(b.hp>0){ b.phase='recover'; b.pt=0; } } }
+  else if(b.inv<=0 && Math.abs(b.x-dinoX)<bw && Math.abs((groundY+dy-58)-b.y)<bh){
     if(air) bossHit(b); else if(shield) bossShieldEat(b); else if(invuln<=0) over(); }
 }
 function drawBoss(){ const b=boss;
@@ -970,8 +980,10 @@ function drawTortoise(b){ const s=b.mega?1.45:1.18, nap=(b.phase==='nap'), zoom=
   else ctx.arc(hx-4,hy2+3,4,0.2*Math.PI,0.75*Math.PI);
   ctx.stroke();
   ctx.restore(); }
-function drawCrow(b){ const s=b.mega?2.5:2.0, flap=Math.sin(b.age*0.42), atk=(b.phase==='swoop'||b.phase==='feint');
-  ctx.save(); ctx.translate(b.x,b.y); ctx.scale(s,s); if(atk) ctx.rotate(0.22);
+function drawCrow(b){ const s=b.mega?2.5:2.0, atk=(b.phase==='swoop'||b.phase==='feint'), dazed=(b.phase==='dazed'||b.phase==='crash');
+  const flap=dazed?0.15:Math.sin(b.age*0.42);
+  ctx.save(); ctx.translate(b.x,b.y); ctx.scale(s,s);
+  if(atk) ctx.rotate(0.22); else if(b.phase==='crash') ctx.rotate(0.9); else if(b.phase==='dazed') ctx.rotate(0.5+Math.sin(b.age*0.1)*0.06);   // flopped on its tail, wobbling
   const BODY='#2c303c', DK='#1e212b';
   ctx.fillStyle=DK; ctx.strokeStyle=OUTLINE; ctx.lineWidth=2; ctx.lineJoin='round';   // tail feathers
   ctx.beginPath(); ctx.moveTo(8,-2); ctx.lineTo(18,-6); ctx.lineTo(15,-1); ctx.lineTo(20,1); ctx.lineTo(14,3); ctx.lineTo(17,7); ctx.lineTo(8,4); ctx.closePath(); ctx.fill(); ctx.stroke();
@@ -986,11 +998,24 @@ function drawCrow(b){ const s=b.mega?2.5:2.0, flap=Math.sin(b.age*0.42), atk=(b.
   ctx.beginPath(); ctx.arc(-10,-7,6.2,0,TAU); ctx.fillStyle=BODY; ctx.fill(); ctx.stroke();   // head
   ctx.fillStyle='#e8a13d'; ctx.beginPath(); ctx.moveTo(-14.5,-8.5); ctx.lineTo(-24,-5.5); ctx.lineTo(-14,-4.5); ctx.closePath(); ctx.fill();   // beak
   ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.8; ctx.stroke();
-  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-11,-9,2.6,0,TAU); ctx.fill(); ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.4; ctx.stroke();
-  ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.arc(-11.6,-9,1.2,0,TAU); ctx.fill();   // red eye
-  ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(-14.5,-12.5); ctx.lineTo(-8,-11); ctx.stroke();   // angry brow
+  const ruf=b.hp0-b.hp;   // ruffled crest — its hairdo gets worse with every hit
+  ctx.fillStyle=DK; ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.6; ctx.lineJoin='round';
+  for(let i=0;i<=ruf;i++){ const a=-1.9+i*0.5+(ruf>0?Math.sin(b.age*0.3+i)*0.08:0), ln=4.5+i*2.2;
+    ctx.beginPath(); ctx.moveTo(-11,-12); ctx.lineTo(-11+Math.cos(a)*ln-1.4,-12+Math.sin(a)*ln); ctx.lineTo(-11+Math.cos(a)*ln+1.4,-12+Math.sin(a)*ln+0.6); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+  if(dazed){ ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.lineCap='round'; ctx.beginPath();   // ✕ eye + tongue out
+    ctx.moveTo(-13,-11); ctx.lineTo(-9,-7); ctx.moveTo(-9,-11); ctx.lineTo(-13,-7); ctx.stroke();
+    ctx.fillStyle='#f0839a'; ctx.beginPath(); ctx.ellipse(-17,-3.4,1.5,2.6,0.5,0,TAU); ctx.fill();
+  } else {
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-11,-9,2.6,0,TAU); ctx.fill(); ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.4; ctx.stroke();
+    ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.arc(-11.6,-9,1.2,0,TAU); ctx.fill();   // red eye
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.8; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(-14.5,-12.5); ctx.lineTo(-8,-11); ctx.stroke();   // angry brow
+  }
   wing(0.95,-2);
-  ctx.restore(); }
+  ctx.restore();
+  if(b.phase==='dazed'){ for(let i=0;i<3;i++){ const a=b.age*0.11+i*TAU/3, sx=b.x+Math.cos(a)*24, sy=b.y-30*(s/2)+Math.sin(a)*6, r=2.6+Math.sin(b.age*0.3+i);   // dizzy stars
+    ctx.fillStyle='#ffd54a'; ctx.beginPath();
+    for(let k=0;k<4;k++){ const an=-Math.PI/2+k*Math.PI/2; ctx.lineTo(sx+Math.cos(an)*r,sy+Math.sin(an)*r); const an2=an+Math.PI/4; ctx.lineTo(sx+Math.cos(an2)*r*0.4,sy+Math.sin(an2)*r*0.4); }
+    ctx.closePath(); ctx.fill(); } } }
 function drawRock(x,y,tall){ ctx.save(); ctx.translate(x,y); const s=tall?1.35:1;
   ctx.beginPath(); ctx.moveTo(-15,10); ctx.lineTo(-17,-2); ctx.lineTo(-8,-13*s); ctx.lineTo(6,-15*s); ctx.lineTo(15,-6); ctx.lineTo(16,9); ctx.closePath();
   ctx.fillStyle='#98a1af'; ctx.strokeStyle=OUTLINE; ctx.lineJoin='round'; ctx.lineWidth=3.5; ctx.stroke(); ctx.fill();
@@ -1306,7 +1331,7 @@ if(P.get('wear')){ equip.hat=P.get('wear'); applyEquip(); }
 if(P.get('gear')){ if(!equip.gear) equip.gear={}; P.get('gear').split(',').forEach(id=>equip.gear[id]=true); applyEquip(); }
 if(P.get('skin')){ equip.skin=P.get('skin'); applyEquip(); }
 if(P.has('boss')){ state='play'; const bt=P.get('boss'), worm=(bt==='worm'), mega=(bt==='mega');
-  if(bt==='crab'||bt==='tortoise'||bt==='crow'){ boss=makeBoss(bt, bt==='tortoise'?1:3, false); boss.x=W-200; boss.phase=bt==='tortoise'?'stroll':(bt==='crab'?'shuffle':'hover'); if(P.has('nap')&&bt==='tortoise') boss.phase='nap'; if(P.has('guard')&&bt==='crab'){ boss.phase='guard'; } if(P.has('zoom')&&bt==='tortoise'){ boss.phase='zoom'; boss.bounces=3; } }
+  if(bt==='crab'||bt==='tortoise'||bt==='crow'){ boss=makeBoss(bt, bt==='tortoise'?1:3, false); boss.x=W-200; boss.phase=bt==='tortoise'?'stroll':(bt==='crab'?'shuffle':'hover'); if(P.has('nap')&&bt==='tortoise') boss.phase='nap'; if(P.has('guard')&&bt==='crab'){ boss.phase='guard'; } if(P.has('zoom')&&bt==='tortoise'){ boss.phase='zoom'; boss.bounces=3; } if(P.has('dazed')&&bt==='crow'){ boss.phase='dazed'; boss.x=W-320; boss.y=groundY-20; boss.hp=2; } }
   else boss = worm ? {type:'worm',hp:3,hp0:3,mega:false,hx:dinoX+40,hy:groundY-85,hy0:groundY+30,startX:dinoX+150,endX:dinoX-150,trail:[],phase:'erupt',pt:36,inv:0,age:0}
               : {type:'bat',hp:mega?5:3,hp0:mega?5:3,mega,x:560,y:groundY-110,hy:groundY-110,phase:'hover',pt:0,inv:0,age:0}; }
 if(P.has('seed')) localStorage.setItem('dinoBoard', JSON.stringify([{name:'MILA',score:412},{name:'LEO',score:388},{name:'you',score:240},{name:'MILA',score:150},{name:'LEO',score:96}]));
