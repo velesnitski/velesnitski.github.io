@@ -1,3 +1,5 @@
 .DS_Store
 .vscode/settings.json
 telemetry/temp.db
+telemetry/temp-agg.db
+telemetry/stats.csv

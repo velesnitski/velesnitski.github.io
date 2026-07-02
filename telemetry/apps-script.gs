@@ -43,16 +43,17 @@ function doGet(){
   const res = { date:new Date().toDateString(), pings:0, players:0, best:0, wbest:null, top:[] };
   if(sh && sh.getLastRow() > 1){
     const rows = sh.getRange(2,1,sh.getLastRow()-1,14).getValues();   // ts..cause
-    const today = new Date().toDateString(), bySid = {};
-    for(const r of rows){
-      const isToday = r[0] && new Date(r[0]).toDateString() === today;
-      if(isToday){ res.pings++; if(r[4]>res.best) res.best=r[4]|0; }
-      if(r[1] === 'over' && (r[4]|0) > 0 && (r[4]|0) <= 30000){   // sanity cap keeps junk off the world board
+    const today = new Date().toDateString(), bySid = {}, todaySids = new Set();
+    for(const r of rows){                                              // single pass — one Date per row
+      if(r[0] && new Date(r[0]).toDateString() === today){
+        res.pings++; todaySids.add(String(r[3]));
+        if((r[4]|0) > res.best && (r[4]|0) <= 30000) res.best = r[4]|0;
+      }
+      if(r[1] === 'over' && (r[4]|0) > 0 && (r[4]|0) <= 30000){        // sanity cap keeps junk off the world board
         const sid = String(r[3]), sc = r[4]|0, nm = String(r[12]||'').slice(0,10) || 'dino';
         if(!bySid[sid] || sc > bySid[sid].sc) bySid[sid] = { n:nm, sc:sc };
       }
     }
-    const todaySids = new Set(rows.filter(r=>r[0] && new Date(r[0]).toDateString()===today).map(r=>String(r[3])));
     res.players = todaySids.size;
     res.top = Object.values(bySid).sort((a,b)=>b.sc-a.sc).slice(0,10);
     res.wbest = res.top[0] || null;
@@ -80,7 +81,7 @@ function buildDashboard(){
   d.getRange(1,11).setValue('🛍 Best sellers').setFontWeight('bold');
   d.getRange(2,11).setFormula('=QUERY(pings!B:Y,"select X, count(X), sum(Y) where B=\'buy\' group by X order by count(X) desc label X \'item\', count(X) \'buys\', sum(Y) \'berries\'",0)');
   d.getRange(1,14).setValue('🌍 World top-10').setFontWeight('bold');
-  d.getRange(2,14).setFormula('=QUERY(pings!B:M,"select M, max(C) where B=\'over\' and C>0 and C<=30000 group by M order by max(C) desc limit 10 label M \'name\', max(C) \'score\'",0)');
+  d.getRange(2,14).setFormula('=QUERY(pings!B:M,"select M, max(E) where B=\'over\' and E>0 and E<=30000 group by M order by max(E) desc limit 10 label M \'name\', max(E) \'score\'",0)');
   d.setFrozenRows(2);
 }
 
