@@ -461,7 +461,7 @@ let shadesOn=false, hatOn=false, t=0;
 let state='menu', score=0, hi=+(localStorage.getItem('dinoHi')||0), speed=4;
 let ents=[], spawnT=50, dy=0, vel=0, air=false, hitFlash=0, lastScore=0, challengePassed=false;
 let coyote=0, jumpBuf=0, sq=0, combo=0, comboTimer=0, shake=0, newBest=false, parts=[], pops=[], shield=false, invuln=0, magnet=0, justPlacedIdx=-1, diving=false, lastMile=0, paused=false, mileFlash=0;
-let boss=null, nextBoss=400, bossCount=0, fightCount=0, overAt=0;
+let boss=null, nextBoss=220, bossCount=0, fightCount=0, overAt=0;
 const P=new URLSearchParams(location.hash.replace(/^#/,''));
 const demo=P.has('demo'), cardMode=P.has('card');
 let challenge=Math.max(0,Math.floor(+P.get('c')||0));
@@ -658,7 +658,7 @@ function missionPanel(){
 }
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; fightCount=0; beatBest=false; chomp=0; heat=0; runTier=0; }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=220; bossCount=0; fightCount=0; beatBest=false; chomp=0; heat=0; runTier=0; }
 function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); stats.runs++; saveStats(); dailyBanner=null; }
 function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14; shake=12; combo=0; sq=0.35; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
@@ -762,7 +762,7 @@ function update(){
   ents=ents.filter(e=> e.x>-60 && !e.dead && !((e.k==='berry'||e.k==='gold'||e.k==='mag')&&e.got));
   if(boss) updateBoss();
 }
-const FIGHTS=['worm','bat','crab','crow'];
+const FIGHTS=['crab','crow','worm','bat'];   // fresh bosses first — everyone meets the crab & crow early
 function makeBoss(type,hp,mega){
   const y = type==='worm'?groundY+30 : type==='crow'?groundY-150 : (type==='crab'||type==='tortoise')?groundY-16 : groundY-118;
   return {type, hp, hp0:hp, mega, x:W+100, y, hx:dinoX, hy:y, hy0:groundY+30, trail:[], phase:type==='worm'?'hidden':'enter', pt:0, inv:0, age:0, bounces:0};
@@ -775,9 +775,9 @@ function spawnBoss(){ bossCount++;
   const hp = mega?5 : (bossCount<=2?2:3);
   boss=makeBoss(type,hp,mega);
   const NAME={worm:'🪱 WORM BOSS! bop its head '+hp+'×', bat:'🦇 BOSS! jump on it '+hp+'×',
-    crab:'🦀 CRAB BOSS! stomp it '+hp+'× — not when claws are up 🛡!', crow:'🐦‍⬛ CROW BOSS! it fakes dives — dodge the real one, stomp the crash!'};
+    crab:'🦀 CRAB BOSS! stomp it '+hp+'× — jump the claw-jab, don’t stomp the 🛡!', crow:'🐦‍⬛ CROW BOSS! it fakes dives — dodge the real one, stomp the crash!'};
   toast((mega?'👑 MEGA ':'')+NAME[type]); }
-function endBoss(){ nextBoss=Math.floor(score)+Math.max(320, 560-bossCount*40); }
+function endBoss(){ nextBoss=Math.floor(score)+Math.max(200, 300-bossCount*20); }   // tight cadence — the cast actually gets seen
 function bossHit(b){ b.hp--; b.inv=40; vel=-13; diving=false; air=true; hitstop=5; shake=12; hitBurst(b.hx||b.x,b.hy||b.y); shieldPop(b.hx||b.x,b.hy||b.y); sfxLand(); vibe(40); pop('HIT!',dinoX,groundY+dy-100,'#ffd54a');
   if(b.hp<=0){ b.phase='defeat'; b.pt=0; const rw=b.mega?80:30; score+=b.mega?120:50; wallet+=rw; saveCloset(); stats.bosses++; saveStats(); endBoss(); confetti(); sfxWin(); toast(b.mega?'🏆 CHAMPION! +'+rw+' 🍓':'💥 BOSS DOWN! +'+rw+' 🍓'); vibe(120); } }
 function bossShieldEat(b){ shield=false; invuln=48; b.inv=26; shieldPop(dinoX,groundY+dy-64); shake=8; combo=0; heat=0; sfxShield(); vibe(40); }
@@ -815,46 +815,53 @@ function updateWorm(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
   }
 }
 function updateCrab(b){ b.pt++; b.age++; if(b.inv>0) b.inv--; if(b.bcd>0) b.bcd--;
-  const gy=groundY-16;
-  if(b.phase==='enter'){ b.x-=4.6; b.y=gy; if(b.x<W-170){ b.phase='shuffle'; b.pt=0; } }
-  else if(b.phase==='shuffle'){   // claws DOWN, stompable — and he keeps CLOSING IN on you
-    b.x=Math.max(dinoX+26, b.x-(b.mega?1.15:0.95)+Math.sin(b.age*0.12)*1.4); b.y=gy-Math.abs(Math.sin(b.age*0.3))*3;
+  const gy=groundY-16, home=dinoX+58;   // arm's length — walking crab can never touch you
+  if(b.phase==='enter'){ b.x-=5.5; b.y=gy; if(b.x<=home+60){ b.phase='shuffle'; b.pt=0; } }
+  else if(b.phase==='shuffle'){   // sidles up fast, claws DOWN = stompable
+    b.x=Math.max(home, b.x-(b.mega?2.6:2.2))+Math.sin(b.age*0.14)*1.2; b.y=gy-Math.abs(Math.sin(b.age*0.3))*3;
     if(b.age%50===0) parts.push({x:b.x-14,y:b.y-26,vx:-0.4,vy:-0.9,g:-0.008,life:34,r:2.5,c:'rgba(170,220,255,.7)'});   // bubbles
-    if(b.pt>(b.mega?66:88)){ b.phase='guard'; b.pt=0; }
-    if(b.age>2100){ b.phase='flee'; endBoss(); } }
+    if(b.x<=home+8 && b.pt>(b.mega?26:38)){ b.phase=(Math.random()<0.38?'guard':'windup'); b.pt=0; }
+    if(b.age>2400){ b.phase='flee'; endBoss(); } }
+  else if(b.phase==='windup'){ b.y=gy;   // claws pulled back — jab incoming ❗
+    if(b.pt>(b.mega?14:22)){ b.phase='jab'; b.pt=0; b.sx=b.x; } }
+  else if(b.phase==='jab'){ const dur=b.mega?16:20, k=Math.min(1,b.pt/dur), st=Math.sin(k*Math.PI);   // quick lunge & back
+    b.x=b.sx-(b.sx-(dinoX+4))*st; b.y=gy;
+    if(b.pt>dur){ b.phase='shuffle'; b.pt=0; } }
   else if(b.phase==='guard'){ b.y=gy;   // claws UP — stomps just CLACK off (harmless)
-    if(b.pt>(b.mega?42:56)){ b.phase='shuffle'; b.pt=0; } }
+    if(b.pt>(b.mega?34:46)){ b.phase='shuffle'; b.pt=0; } }
   else if(b.phase==='defeat'){ b.y-=6; b.x+=4; if(b.y<-100) boss=null; return; }
   else if(b.phase==='flee'){ b.x+=5; b.y=gy; if(b.x>W+90) boss=null; return; }
-  const r=b.mega?46:38, feet=groundY+dy;
+  const r=b.mega?52:46, feet=groundY+dy;
   if(Math.abs(b.x-dinoX)<r){
-    if(air && vel>0 && feet>b.y-54 && feet<b.y+10){   // landing on him from above (feet-based)
-      if(b.phase==='guard'){ if(b.bcd<=0){ b.bcd=20; vel=-12; diving=false; hitstop=2;   // blocked!
+    if(air && vel>0 && feet>b.y-64 && feet<b.y+14){   // generous stomp envelope (any phase but guard)
+      if(b.phase==='guard'){ if(!(b.bcd>0)){ b.bcd=20; vel=-12; diving=false; hitstop=2;   // blocked!
         pop('CLACK!',b.x,b.y-64,'#c9d4e8'); shieldPop(b.x,b.y-40); sfxNice(); vibe(15); } }
-      else if(b.inv<=0){ bossHit(b); b.x=Math.min(W-80,b.x+80); } }   // knocked back — re-approaches
-    else if(!air && Math.abs(b.x-dinoX)<r-8 && b.inv<=0 && invuln<=0){
+      else if(b.inv<=0){ bossHit(b); b.x=Math.min(W-80,b.x+90); b.phase='shuffle'; b.pt=0; } }   // knocked back
+    else if(!air && b.phase==='jab' && Math.abs(b.x-dinoX)<34 && b.inv<=0 && invuln<=0){   // ONLY the jab hurts
       if(shield) bossShieldEat(b); else over(); } }
 }
 function updateTortoise(b){ b.pt++; b.age++; if(b.squish>0) b.squish--;
   const gy=groundY-16; b.y=gy+(b.phase==='nap'?0.5:Math.sin(b.age*0.15)*1.2);
-  if(b.phase==='enter'){ b.x-=2.6; if(b.x<W-190){ b.phase='stroll'; b.pt=0; } }
-  else if(b.phase==='stroll'){ b.x-=1.15;
-    if(b.pt>130 && Math.random()<0.012){ b.phase='nap'; b.pt=0; }   // granny nap time
+  if(b.phase==='enter'){ b.x-=3.6; if(b.x<W-190){ b.phase='stroll'; b.pt=0; } }
+  else if(b.phase==='stroll'){ b.x-=2.0;
+    if(!b.napped && b.pt>70 && Math.random()<0.02){ b.phase='nap'; b.pt=0; b.napped=1; }   // one granny nap per visit
+    if(b.x<-80){ boss=null; endBoss(); if(!b.bounces) toast('🐢 aww… next time bounce on my shell!'); return; } }
+  else if(b.phase==='nap'){ if(b.pt%30===0) pop('z',b.x-6+Math.random()*12,b.y-52,'#9fb0c0');
+    if(b.pt>95){ b.phase='stroll'; b.pt=0; } }
+  else if(b.phase==='zoom'){ b.x-=9; if(b.pt%5===0) dust(b.x+30);   // spinning-shell exit, wheee!
     if(b.x<-80){ boss=null; endBoss(); return; } }
-  else if(b.phase==='nap'){ if(b.pt%42===0) pop('z',b.x-6+Math.random()*12,b.y-52,'#9fb0c0');
-    if(b.pt>170){ b.phase='stroll'; b.pt=0; } }
-  else if(b.phase==='zoom'){ b.x-=8; if(b.pt%6===0) dust(b.x+30);   // spinning-shell exit, wheee!
-    if(b.x<-80){ boss=null; endBoss(); return; } }
-  if(b.phase!=='zoom' && air && vel>0 && b.bounces<3){   // bounce on her shell = berries
-    const feet=groundY+dy;   // trigger right at the shell dome, not at ground level
-    if(Math.abs(b.x-dinoX)<36 && feet>b.y-52 && feet<b.y+8){
+  if(b.phase!=='zoom' && air && vel>0 && b.bounces<3){   // bounce on her shell = berry piñata!
+    const feet=groundY+dy;
+    if(Math.abs(b.x-dinoX)<42 && feet>b.y-64 && feet<b.y+10){
       const woke=(b.phase==='nap');
       b.bounces++; b.squish=14; vel=-15; diving=false; sq=0.25; hitstop=2; chomp=9;
-      runBerries+=5; score+=10; sparkle(b.x,b.y-34); sfxBerry(b.bounces+2); vibe(25); missionEvent('berry',5);
-      if(woke){ b.phase='stroll'; b.pt=0; pop('!? +5 🍓',b.x,b.y-58,'#ffd54a'); }
-      else pop('boing! +5 🍓',b.x,b.y-58,'#e5384e');
+      runBerries+=3; score+=10; sparkle(b.x,b.y-40); sfxBerry(b.bounces+2); vibe(25); missionEvent('berry',3);
+      for(let i=0;i<3;i++) ents.push({k:'berry', x:b.x-10+i*46, y:b.y-96-Math.sin(i/2*Math.PI)*34, got:false});   // berries fly out of the shell
+      const line=woke?'!?':['boing!','oho!!','tee-hee!'][b.bounces-1];
+      pop(line+' 🍓🍓🍓', b.x, b.y-64, woke?'#ffd54a':'#e5384e');
+      if(woke){ b.phase='stroll'; b.pt=0; }
       if(b.bounces>=3){ if(!shield){ shield=true; pop('🛡 a gift!',dinoX,groundY+dy-88,'#39d0ff'); sfxPower(); }
-        b.phase='zoom'; b.pt=0; confetti(); pop('wheee!',b.x,b.y-74,'#ff8fb0'); toast('🐢 wheee! bye-bye!'); } } }
+        b.phase='zoom'; b.pt=0; confetti(); pop('wheee!',b.x,b.y-80,'#ff8fb0'); toast('🐢 wheee! bye-bye!'); } } }
 }
 function updateCrow(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
   const speedUp=1+(b.hp0-b.hp)*0.25;   // enrage: faster with every hit
@@ -897,11 +904,11 @@ function drawBoss(){ const b=boss;
   const flash=b.inv>0 && Math.floor(t/3)%2===0;
   if(!flash){ if(b.type==='crab') drawCrab(b); else if(b.type==='tortoise') drawTortoise(b); else if(b.type==='crow') drawCrow(b); else drawBat(ctx,b.x,b.y,t*0.5,b.mega?2.9:2.3,true); }
   if(b.type==='tortoise'){ if(b.bounces<3 && b.phase!=='zoom'){ ctx.textAlign='center'; ctx.font='14px system-ui,sans-serif';
-      ctx.fillText(b.phase==='nap'?'💤':'🍓'.repeat(3-b.bounces), b.x, b.y-64); } return; }
+      ctx.fillText(b.phase==='nap'?'💤':('⬇'+'🍓'.repeat(3-b.bounces)), b.x, b.y-64-Math.abs(Math.sin(t*0.1))*5); } return; }
   const hy=b.y-(b.mega?60:44);
   if(b.mega){ ctx.textAlign='center'; ctx.font='24px system-ui,sans-serif'; ctx.fillText('👑', b.x, hy-18); }
   ctx.textAlign='center'; ctx.font='15px system-ui,sans-serif'; let s=''; for(let i=0;i<b.hp0;i++) s+= i<b.hp?'❤️':'🖤'; ctx.fillText(s, b.x, hy);
-  if(b.phase==='wind' || (b.type==='crow' && b.phase==='feint' && b.pt<14)){ ctx.font='22px system-ui,sans-serif'; ctx.fillText('❗', b.x, hy-22); }
+  if(b.phase==='wind' || b.phase==='windup' || (b.type==='crow' && b.phase==='feint' && b.pt<14)){ ctx.font='22px system-ui,sans-serif'; ctx.fillText('❗', b.x, hy-22); }
   if(b.type==='crab' && b.phase==='guard'){ ctx.font='20px system-ui,sans-serif'; ctx.fillText('🛡', b.x, hy-22); }
 }
 function drawWorm(b){ const segs=b.mega?7:5, base=b.mega?'#e08a3a':'#e8933f', dk='#b06322';
@@ -938,10 +945,11 @@ function drawCrab(b){ const s=b.mega?1.5:1.1, up=(b.phase==='guard'), snap=Math.
   ctx.strokeStyle='#a03222'; ctx.lineWidth=2;   // shell ridges
   ctx.beginPath(); ctx.moveTo(-14,-12); ctx.quadraticCurveTo(0,-18,14,-12); ctx.moveTo(-16,-4); ctx.quadraticCurveTo(0,-9,16,-4); ctx.stroke();
   ctx.fillStyle='rgba(255,255,255,.3)'; ctx.beginPath(); ctx.ellipse(-9,-13,7,4,-.3,0,TAU); ctx.fill();
-  [-1,1].forEach(sd=>{ const ax=sd*24, cxx=up?sd*13:sd*38, cy=up?-36:-10;   // claws crossed overhead = BLOCK 🛡
+  const pulled=(b.phase==='windup'), jab=(b.phase==='jab');
+  [-1,1].forEach(sd=>{ const ax=sd*24, cxx=up?sd*13:(pulled?sd*46:(jab?sd*34:sd*38)), cy=up?-36:(pulled?-16:-10);   // up=BLOCK · pulled back=jab incoming
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=7; ctx.beginPath(); ctx.moveTo(ax,-4); ctx.lineTo(cxx,cy+8); ctx.stroke();
     ctx.strokeStyle='#d9502f'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(ax,-4); ctx.lineTo(cxx,cy+8); ctx.stroke();
-    const openA=up?0.22:0.5+Math.max(0,snap)*0.4;   // claws clamp shut while blocking
+    const openA=up?0.22:(pulled?0.85:0.5+Math.max(0,snap)*0.4);   // clamp shut blocking · wide open ready to jab
     ctx.beginPath(); ctx.moveTo(cxx,cy); ctx.arc(cxx,cy,11,(sd>0?-0.4:Math.PI+0.4)+openA,(sd>0?-0.4:Math.PI+0.4)-openA+TAU); ctx.closePath();
     ctx.fillStyle='#e8604a'; ctx.fill(); ctx.strokeStyle=OUTLINE; ctx.lineWidth=3; ctx.stroke();
     ctx.fillStyle='rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(cxx-3,cy-4,3,0,TAU); ctx.fill(); });
