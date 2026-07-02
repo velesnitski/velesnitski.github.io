@@ -824,7 +824,7 @@ function updateWorm(b){ b.pt++; b.age++; if(b.inv>0) b.inv--;
   }
 }
 function updateCrab(b){ b.pt++; b.age++; if(b.inv>0) b.inv--; if(b.bcd>0) b.bcd--;
-  const gy=groundY-16, home=dinoX+58;   // arm's length — a moving crab can never touch you, only the jab can
+  const gy=groundY-16, home=dinoX+38;   // close enough to STOMP while he rests — only his jab can touch you
   const hopTo=(tx,vy)=>{ b.phase='hop'; b.pt=0; b.hvx=(tx-b.x)/22; b.vy=vy||-8.6; };   // bouncy skitter
   if(b.phase==='enter'){ b.x-=6.5; b.y=gy; if(b.x<=W-180) hopTo(Math.max(home,b.x-150)); }
   else if(b.phase==='hop'){ b.vy+=0.78; b.y+=b.vy; b.x+=b.hvx;   // boing boing — back and forth
@@ -844,7 +844,7 @@ function updateCrab(b){ b.pt++; b.age++; if(b.inv>0) b.inv--; if(b.bcd>0) b.bcd-
   else if(b.phase==='defeat'){ b.y-=6; b.x+=4; if(b.y<-100) boss=null; return; }
   else if(b.phase==='flee'){ b.x+=6; b.y=gy; if(b.x>W+90) boss=null; return; }
   if(b.age%50===0 && b.y>=gy-1) parts.push({x:b.x-14,y:b.y-26,vx:-0.4,vy:-0.9,g:-0.008,life:34,r:2.5,c:'rgba(170,220,255,.7)'});   // bubbles
-  const r=b.mega?54:50, feet=groundY+dy;
+  const r=b.mega?60:56, feet=groundY+dy;
   if(Math.abs(b.x-dinoX)<r){
     if(air && vel>0 && feet>b.y-68 && feet<b.y+14){   // extra-generous stomp envelope (any phase but guard — even mid-hop!)
       if(b.phase==='guard'){ if(!(b.bcd>0)){ b.bcd=20; vel=-12; diving=false; hitstop=2;   // blocked!
