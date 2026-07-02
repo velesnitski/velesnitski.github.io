@@ -106,9 +106,13 @@ function drawDino(ctx, cx, footY, s, o){
   let bob = o.jump? -8 : (o.walk? -Math.abs(Math.sin(o.t*0.56))*2 : Math.sin(o.t*0.05)*1.5);
 
   ctx.save(); ctx.translate(cx, footY+bob); ctx.scale((o.flip?-s:s)*(o.sx||1), s*(o.sy||1));
+  if(o.rot) ctx.rotate(o.rot);
 
   ctx.fillStyle='rgba(30,55,60,.28)';
   ctx.beginPath(); ctx.ellipse(10,8-bob,86,14,0,0,TAU); ctx.fill();
+  if(o.tier>=3){ const p=0.2+0.08*Math.sin(o.t*0.15);   // run-tier 3: golden champion aura
+    const tg=ctx.createRadialGradient(14,-62,8,14,-62,95); tg.addColorStop(0,'rgba(255,215,90,'+p+')'); tg.addColorStop(1,'rgba(255,215,90,0)');
+    ctx.fillStyle=tg; ctx.beginPath(); ctx.ellipse(14,-62,95,86,0,0,TAU); ctx.fill(); }
   if(o.glow){ const p=0.34+0.14*Math.sin(o.t*0.12);   // molten ember aura (lava skin)
     const gg=ctx.createRadialGradient(14,-62,8,14,-62,92); gg.addColorStop(0,'rgba(255,150,60,'+(p+0.18)+')'); gg.addColorStop(.55,'rgba(255,90,40,'+(p*0.5)+')'); gg.addColorStop(1,'rgba(255,90,40,0)');
     ctx.fillStyle=gg; ctx.beginPath(); ctx.ellipse(14,-62,92,84,0,0,TAU); ctx.fill(); }
@@ -170,7 +174,10 @@ function drawDino(ctx, cx, footY, s, o){
   ctx.save(); ctx.beginPath(); ctx.ellipse(-63,-145,35,33,0,0,TAU); ctx.clip();
     ctx.fillStyle='rgba(255,255,255,.12)'; ctx.beginPath(); ctx.ellipse(-72,-162,20,11,-.3,0,TAU); ctx.fill(); ctx.restore();
 
-  if(o.shades){
+  if(o.ko){   // knocked-out ✕ eyes
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=3.4; ctx.lineCap='round'; ctx.beginPath();
+    ctx.moveTo(-77,-151); ctx.lineTo(-67,-141); ctx.moveTo(-67,-151); ctx.lineTo(-77,-141); ctx.stroke();
+  } else if(o.shades){
     const lg=ctx.createLinearGradient(-78,-155,-66,-138); lg.addColorStop(0,'#3d5a75'); lg.addColorStop(.55,'#1c2f40'); lg.addColorStop(1,'#101c26');
     ctx.fillStyle=lg; ctx.strokeStyle=OUTLINE; ctx.lineWidth=3.4;
     ctx.beginPath(); ctx.ellipse(-72,-146,13,9.5,-.14,0,TAU); ctx.fill(); ctx.stroke();
@@ -202,7 +209,13 @@ function drawDino(ctx, cx, footY, s, o){
   ctx.fillStyle='rgba(238,110,140,.42)'; ctx.beginPath(); ctx.ellipse(-58.5,-134,6.4,4.2,-.12,0,TAU); ctx.fill();   // cheek blush
   ctx.fillStyle=OUTLINE; ctx.beginPath(); ctx.ellipse(-94,-150,2,2.4,0,0,TAU); ctx.fill();
   const mouth=o.mouth||0;
-  if(mouth>0.15){   // open jaw — chomping a berry / excited mid-air
+  if(o.ko){   // dazed: open maw + tongue lolling out
+    ctx.fillStyle='#7a2233'; ctx.beginPath(); ctx.ellipse(-85,-134,5.5,4,0,0,TAU); ctx.fill();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.stroke();
+    const tw=Math.sin(o.t*0.08)*1.5;
+    ctx.fillStyle='#f0839a'; ctx.beginPath(); ctx.ellipse(-87+tw*0.4,-127,3,6,0.25,0,TAU); ctx.fill();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=1.8; ctx.stroke();
+  } else if(mouth>0.15){   // open jaw — chomping a berry / excited mid-air
     ctx.fillStyle='#7a2233'; ctx.beginPath(); ctx.ellipse(-85,-134,6,2.4+mouth*5,0,0,TAU); ctx.fill();
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.4; ctx.stroke();
     ctx.fillStyle='#f0839a'; ctx.beginPath(); ctx.ellipse(-85,-131+mouth*2,3.2,1.4+mouth*2,0,0,TAU); ctx.fill();
@@ -213,6 +226,14 @@ function drawDino(ctx, cx, footY, s, o){
     ctx.beginPath(); ctx.roundRect(-87,-134.6,5,4.6,1.6); ctx.fill(); ctx.stroke();
   }
 
+  if(o.tier>=2){ const fl=Math.sin(o.t*0.25)*4;   // run-tier 2: determination headband
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=10; ctx.lineCap='round'; ctx.beginPath(); ctx.arc(-63,-145,33,Math.PI*1.02,Math.PI*1.52); ctx.stroke();
+    ctx.strokeStyle='#e5384e'; ctx.lineWidth=7; ctx.beginPath(); ctx.arc(-63,-145,33,Math.PI*1.02,Math.PI*1.52); ctx.stroke();
+    ctx.strokeStyle=OUTLINE; ctx.lineWidth=8; ctx.beginPath();   // fluttering ribbon tails
+    ctx.moveTo(-36,-170); ctx.quadraticCurveTo(-24,-176+fl,-12,-172+fl); ctx.moveTo(-36,-170); ctx.quadraticCurveTo(-26,-164-fl,-16,-160-fl); ctx.stroke();
+    ctx.strokeStyle='#e5384e'; ctx.lineWidth=5; ctx.beginPath();
+    ctx.moveTo(-36,-170); ctx.quadraticCurveTo(-24,-176+fl,-12,-172+fl); ctx.moveTo(-36,-170); ctx.quadraticCurveTo(-26,-164-fl,-16,-160-fl); ctx.stroke();
+    ctx.fillStyle='#c02a3c'; ctx.beginPath(); ctx.arc(-36,-170,4.5,0,TAU); ctx.fill(); ctx.strokeStyle=OUTLINE; ctx.lineWidth=2; ctx.stroke(); }
   if(o.hat && o.hat!=='none'){ ctx.save(); ctx.translate(-1,-5); const hx=-62;   // hats ride the bigger head
     if(o.hat==='panama' || o.hat===true){
       const sg=ctx.createLinearGradient(0,-208,0,-166); sg.addColorStop(0,'#f8e6a6'); sg.addColorStop(1,'#e6c778');
@@ -296,6 +317,13 @@ function drawDino(ctx, cx, footY, s, o){
       ctx.fillStyle='#e5384e'; ctx.fillRect(L.fx-15, by+5, 30, 3); ctx.fillRect(L.fx-15, by+9, 30, 3);
     ctx.restore();
     ctx.strokeStyle=OUTLINE; ctx.lineWidth=2; ctx.beginPath(); ctx.roundRect(L.fx-13, by, 26, bh, 4); ctx.stroke(); }); }
+  if(o.tier>=1 && o.walk){ ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=3.5; ctx.lineCap='round';   // run-tier 1: speed streaks
+    for(let i=0;i<3;i++){ const off=(o.t*7+i*26)%64; ctx.beginPath(); ctx.moveTo(82+off*0.5,-34-i*30); ctx.lineTo(102+off*0.5,-34-i*30); ctx.stroke(); } }
+  if(o.tier>=4 && o.walk){ legs.filter(L=>!L.far).forEach((L,i)=>{ const f=Math.sin(o.t*0.5+i*2.4)*0.5+0.5;   // run-tier 4: blazing feet
+    ctx.fillStyle='rgba(255,130,40,.8)'; ctx.beginPath(); ctx.moveTo(L.fx-8,L.fy+3);
+    ctx.quadraticCurveTo(L.fx+12+f*6, L.fy-6-f*5, L.fx+22+f*8, L.fy+4); ctx.quadraticCurveTo(L.fx+10, L.fy+8, L.fx-8, L.fy+3); ctx.fill();
+    ctx.fillStyle='rgba(255,215,90,.85)'; ctx.beginPath(); ctx.moveTo(L.fx-4,L.fy+3);
+    ctx.quadraticCurveTo(L.fx+8+f*4, L.fy-2-f*3, L.fx+14+f*5, L.fy+4); ctx.quadraticCurveTo(L.fx+6, L.fy+6, L.fx-4, L.fy+3); ctx.fill(); }); }
   if(o.armour){   // cute little heart-gem chest-bib + one soft shoulder pad (not bulky)
     const cx0=2, cy0=-58, hw=18, ht=15;
     const ag=ctx.createLinearGradient(0,cy0-ht,0,cy0+ht+6); ag.addColorStop(0,'#fdfeff'); ag.addColorStop(.5,'#dde5f0'); ag.addColorStop(1,'#b2bdcc');
@@ -345,6 +373,10 @@ function drawDino(ctx, cx, footY, s, o){
     ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx-15,by-10); ctx.lineTo(bx-15,by+10); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(bx,by); ctx.lineTo(bx+15,by-10); ctx.lineTo(bx+15,by+10); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.fillStyle='#e5384e'; ctx.beginPath(); ctx.arc(bx,by,4.5,0,TAU); ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=OUTLINE; ctx.stroke(); }
+  if(o.ko){ for(let i=0;i<3;i++){ const a=o.t*0.11+i*TAU/3, sx=-63+Math.cos(a)*28, sy=-192+Math.sin(a)*8, r=3.4+Math.sin(o.t*0.3+i)*1;   // dizzy stars
+    ctx.fillStyle='#ffd54a'; ctx.beginPath();
+    for(let k=0;k<4;k++){ const an=-Math.PI/2+k*Math.PI/2+a*0.3; ctx.lineTo(sx+Math.cos(an)*r,sy+Math.sin(an)*r); const an2=an+Math.PI/4; ctx.lineTo(sx+Math.cos(an2)*r*0.4,sy+Math.sin(an2)*r*0.4); }
+    ctx.closePath(); ctx.fill(); } }
 
   ctx.restore();
 }
@@ -430,7 +462,9 @@ let wallet=+(localStorage.getItem('dinoWallet')||0), runBerries=0, hitstop=0, so
 const STAT0={runs:0,berries:0,bosses:0,jumps:0,dives:0,bestCombo:0,nearMiss:0,best:0};
 let stats=(()=>{ try{ return Object.assign({},STAT0,JSON.parse(localStorage.getItem('dinoStats')||'{}')); }catch(e){ return Object.assign({},STAT0); } })();
 function saveStats(){ localStorage.setItem('dinoStats',JSON.stringify(stats)); }
-let beatBest=false, chomp=0;
+let beatBest=false, chomp=0, runTier=0;
+const TIER_AT=[0,150,300,500,800], TIER_NAME=['','💨 SPEEDY!','🎽 HEADBAND!','✨ GOLDEN!','🔥 BLAZING!'];
+function runTierOf(sc){ let n=0; for(let i=1;i<TIER_AT.length;i++) if(sc>=TIER_AT[i]) n=i; return n; }
 // ---- meta progression: player level / XP (long-term pull) ----
 let xp=+(localStorage.getItem('dinoXP')||0), luckyBonus=0, dailyBanner=null;
 function xpToNext(l){ return 120+(l-1)*70; }
@@ -612,9 +646,9 @@ function missionPanel(){
 }
 
 function reset(){ score=0; speed=4.2; ents=[]; spawnT=46; dy=0; vel=0; air=false; hitFlash=0; challengePassed=false;
-  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; fightCount=0; beatBest=false; chomp=0; heat=0; }
+  coyote=0; jumpBuf=0; sq=0; combo=0; comboTimer=0; shake=0; parts=[]; pops=[]; shield=false; invuln=0; magnet=0; justPlacedIdx=-1; diving=false; lastMile=0; paused=false; mileFlash=0; runBerries=0; hitstop=0; boss=null; nextBoss=400; bossCount=0; fightCount=0; beatBest=false; chomp=0; heat=0; runTier=0; }
 function start(){ reset(); if(armourOn) shield=true; state='play'; sfxStart(); stats.runs++; saveStats(); dailyBanner=null; }
-function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14; shake=12; combo=0; sfxHit(); hitBurst(dinoX,groundY+dy-64);
+function over(){ if(state!=='play') return; state='over'; overAt=t; hitFlash=14; shake=12; combo=0; sq=0.35; sfxHit(); hitBurst(dinoX,groundY+dy-64);
   lastScore=Math.floor(score); newBest=lastScore>hi; hi=Math.max(hi,lastScore); localStorage.setItem('dinoHi',hi);
   wallet+=runBerries; saveCloset();
   stats.berries+=runBerries; if(lastScore>stats.best) stats.best=lastScore; saveStats();
@@ -658,6 +692,8 @@ function update(){
   score+=speed*0.02; missionEvent('score',Math.floor(score));
   if(Math.floor(score/100)>lastMile){ lastMile++; mileFlash=14; speed=Math.min(9.2,speed+0.25); pop(lastMile*100+'!',dinoX,groundY+dy-104,'#ffd54a'); sfxMile(); vibe(20); }
   if(!beatBest && hi>0 && score>hi){ beatBest=true; toast('🏆 New best!'); confetti(); sfxMile(); vibe(30); }
+  const nt=runTierOf(score);   // the longer the run, the more dino swag
+  if(nt>runTier){ runTier=nt; pop(TIER_NAME[nt],dinoX,groundY+dy-122,'#ffd54a'); sparkle(dinoX,groundY+dy-70); sfxPower(); vibe(30); }
   if(combo>stats.bestCombo) stats.bestCombo=combo;
   if(chomp>0) chomp--;
   if(heat>0) heat=Math.max(0,heat-0.15);
@@ -1102,11 +1138,14 @@ function frame(){
       ctx.fillStyle='rgba(255,255,255,.4)'; ctx.beginPath(); ctx.arc(e.x-2,e.y-2,1.8,0,TAU); ctx.fill(); }
     else drawBerry(ctx,e.x,e.y, e.k); }
   const blink=(t%240)<8?0:1;
-  const mouthOpen=P.has('chomp')?1:(chomp>0?Math.min(1,chomp/7):((air&&state==='play')?0.5:0));
+  let mouthOpen=P.has('chomp')?1:(chomp>0?Math.min(1,chomp/7):((air&&state==='play')?0.5:0));
+  if(state==='play' && (t%600)>556 && !air) mouthOpen=Math.max(mouthOpen,0.4);   // happy-pant quirk every ~10s
+  const mh=t%240, hopY=(state==='menu'&&mh<20)?-Math.sin(mh/20*Math.PI)*12:0;    // idle hop on the title screen
+  const koT=state==='over'?Math.min(1,(t-overAt)/16):0;                          // KO tip-over ease-in
   const flashing = invuln>0 && Math.floor(t/3)%2===0;
   if(flashing) ctx.globalAlpha=0.4;
   if(rainbow){ bodyHex=hslHex(t*2,0.62,0.6); plateHex=hslHex(t*2+50,0.55,0.75); }
-  drawDino(ctx, dinoX, groundY+dy, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, scarf:scarfOn, cape:capeOn, glow:skinGlow, starry:skinStarry, hat:hatOn, open:(state==='over'?0:blink), mouth:(state==='over'?0:mouthOpen), sx:1+sq*0.6, sy:1-sq});
+  drawDino(ctx, dinoX, groundY+dy+hopY, SC, {t, flip:true, walk:(state==='play'&&!air), jump:air, shades:shadesOn, socks:socksOn, tailbow:tailbowOn, tailspike:tailspikeOn, armour:armourOn, scarf:scarfOn, cape:capeOn, glow:skinGlow, starry:skinStarry, hat:hatOn, open:(state==='over'?0:blink), mouth:(state==='over'?0:mouthOpen), ko:(state==='over'), rot:koT*0.14, tier:(state==='play'||state==='over')?runTier:0, sx:1+sq*0.6, sy:1-sq});
   ctx.globalAlpha=1;
   if(shield){ const pu=1+Math.sin(t*0.18)*0.04;
     ctx.save(); ctx.translate(dinoX-4, groundY+dy-92); ctx.scale(pu,pu);
@@ -1246,6 +1285,8 @@ if(P.has('boss')){ state='play'; const bt=P.get('boss'), worm=(bt==='worm'), meg
   else boss = worm ? {type:'worm',hp:3,hp0:3,mega:false,hx:dinoX+40,hy:groundY-85,hy0:groundY+30,startX:dinoX+150,endX:dinoX-150,trail:[],phase:'erupt',pt:36,inv:0,age:0}
               : {type:'bat',hp:mega?5:3,hp0:mega?5:3,mega,x:560,y:groundY-110,hy:groundY-110,phase:'hover',pt:0,inv:0,age:0}; }
 if(P.has('seed')) localStorage.setItem('dinoBoard', JSON.stringify([{name:'MILA',score:412},{name:'LEO',score:388},{name:'you',score:240},{name:'MILA',score:150},{name:'LEO',score:96}]));
+if(P.get('tier')) runTier=Math.min(4,+P.get('tier')||0);
+if(P.has('ko')){ state='over'; overAt=t-60; lastScore=123; }
 requestAnimationFrame(frame);
 </script>
 </body>
