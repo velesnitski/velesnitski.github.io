@@ -50,8 +50,10 @@ function doGet(){
         if((r[4]|0) > res.best && (r[4]|0) <= 30000) res.best = r[4]|0;
       }
       if(r[1] === 'over' && (r[4]|0) > 0 && (r[4]|0) <= 30000){        // sanity cap keeps junk off the world board
-        const sid = String(r[3]), sc = r[4]|0, nm = String(r[12]||'').slice(0,10) || 'dino';
-        if(!bySid[sid] || sc > bySid[sid].sc) bySid[sid] = { n:nm, sc:sc };
+        const sc = r[4]|0, nm = String(r[12]||'').slice(0,10) || 'dino';
+        // named players merge by name (alex+Alex = one kid, any device); ALL anonymous runs share one "dino" line
+        const key = nm.toLowerCase() !== 'dino' ? 'n:' + nm.toLowerCase() : 'anon';
+        if(!bySid[key] || sc > bySid[key].sc) bySid[key] = { n:nm, sc:sc };
       }
     }
     res.players = todaySids.size;
