@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🚀 To Strawberry World</title>
+<meta name="description" content="Scroll to launch — a little rocket ride to the planet where Strawberry Dash players live.">
+<meta name="theme-color" content="#0e1524">
+<link rel="shortcut icon" type="image/x-icon" href="../favicons/favicon.ico">
+<style>
+  *{margin:0;box-sizing:border-box}
+  body{background:#0e1524;font-family:system-ui,-apple-system,sans-serif;color:#e8eef5}
+  #space{height:7000px}                              /* the journey = the scroll */
+  canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .hud{position:fixed;left:0;right:0;text-align:center;pointer-events:none;z-index:5}
+  #title{top:26px;font-weight:800;font-size:clamp(20px,4vw,30px);text-shadow:0 2px 12px rgba(0,0,0,.5)}
+  #hint{bottom:34px;font-size:15px;font-weight:600;color:#bfe3ff;animation:bob 1.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}
+  #alt{position:fixed;top:26px;right:22px;background:rgba(18,28,26,.55);padding:7px 14px;border-radius:11px;
+       font-weight:700;font-size:14px;color:#ffd27a;z-index:5}
+  #cta{position:fixed;left:50%;bottom:12vh;transform:translateX(-50%);z-index:6;opacity:0;pointer-events:none;
+       transition:opacity .6s;text-align:center}
+  #cta.show{opacity:1;pointer-events:auto}
+  #cta a{display:inline-block;background:#2b6cff;color:#fff;text-decoration:none;font-weight:800;font-size:17px;
+         padding:14px 28px;border-radius:14px;box-shadow:0 8px 30px rgba(43,108,255,.45)}
+  #cta p{margin-top:10px;font-size:13px;color:#9fb0c0}
+  #foot{position:fixed;bottom:8px;left:12px;font-size:11px;color:#5a6a7c;z-index:5}
+  #foot a{color:#7f9ec2}
+  @media (prefers-reduced-motion: reduce){ #hint{animation:none} }
+</style>
+</head>
+<body>
+  <div id="space"></div>
+  <canvas id="c"></canvas>
+  <div class="hud" id="title">🚀 To Strawberry World</div>
+  <div class="hud" id="hint">scroll to launch ⌄</div>
+  <div id="alt">ALT 0 m</div>
+  <div id="cta"><a href="../dino/">🍓 Land &amp; play Strawberry Dash</a><p>the planet below is lit by its real players</p></div>
+  <div id="foot">rocket v1 · <a href="../">home</a> · <a href="../dino/">dino</a></div>
+
+<script src="three.min.js"></script>
+<script>
+const TELEMETRY_EP='https://script.google.com/macros/s/AKfycbyA-zpBfGubbXMPGJNe5_nRhcAWUt19uE_nln2oCbH4XGjnwkT6qjC1cNEWrlpQXnqf/exec';
+const Q=new URLSearchParams(location.search);
+const FORCED_P=Q.has('p')?Math.max(0,Math.min(1,parseFloat(Q.get('p'))||0)):null;   // ?p=0.5 → freeze progress (screenshots/debug)
+
+/* ── palette: Strawberry Dash's own colors, so the universes connect ── */
+const SKY_DAWN=new THREE.Color('#bfe0f2'), SKY_SPACE=new THREE.Color('#070b16');
+const MINT='#7fd6b0', BERRY='#e5384e', CREAM='#f3e6c6', OUT='#26383f';
+
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio||1));
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .1, 4000);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.05));
+const sun=new THREE.DirectionalLight(0xfff2d0, 1.1); sun.position.set(60,80,40); scene.add(sun);
+
+/* ── tiny helpers ── */
+const M=(geo,color,flat)=>new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color, flatShading:!!flat}));
+function canvasTex(draw,w=128,h=128){ const c=document.createElement('canvas'); c.width=w; c.height=h;
+  draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); return t; }
+function spriteText(text,size=42,color='#ffd27a'){ const pad=18;
+  const c=document.createElement('canvas'); const x=c.getContext('2d');
+  x.font=`800 ${size}px system-ui,sans-serif`; c.width=Math.ceil(x.measureText(text).width)+pad*2; c.height=size+pad*2;
+  const x2=c.getContext('2d'); x2.font=`800 ${size}px system-ui,sans-serif`; x2.textBaseline='middle';
+  x2.shadowColor='rgba(0,0,0,.55)'; x2.shadowBlur=10; x2.fillStyle=color; x2.fillText(text,pad,c.height/2);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false}));
+  s.scale.set(c.width/22, c.height/22, 1); return s; }
+
+/* ══ THE ROCKET (code-modeled, dino in the porthole) ══ */
+const rocket=new THREE.Group();
+{
+  const body=M(new THREE.CylinderGeometry(3.1,3.6,16,20),'#eef2f7'); rocket.add(body);
+  const nose=M(new THREE.ConeGeometry(3.15,6,20),BERRY); nose.position.y=11; rocket.add(nose);
+  const collar=M(new THREE.CylinderGeometry(3.3,3.3,1.1,20),'#c9d2df'); collar.position.y=7.6; rocket.add(collar);
+  for(let i=0;i<3;i++){ const fin=M(new THREE.BoxGeometry(.8,6,4.6),BERRY,true);
+    const a=i/3*Math.PI*2; fin.position.set(Math.cos(a)*3.6,-7.2,Math.sin(a)*3.6);
+    fin.rotation.y=-a; rocket.add(fin); }
+  const nozzle=M(new THREE.CylinderGeometry(2.1,2.9,2.4,16),'#5f6a7c'); nozzle.position.y=-9; rocket.add(nozzle);
+  // porthole with the dino peeking through
+  const dinoTex=canvasTex((x,w,h)=>{ x.fillStyle='#0e1a2a'; x.fillRect(0,0,w,h);
+    x.fillStyle=MINT; x.beginPath(); x.arc(64,78,42,0,7); x.fill();                       // head
+    x.fillStyle='#182226'; x.beginPath(); x.ellipse(48,64,9,11,0,0,7); x.fill();          // eye
+    x.fillStyle='#fff'; x.beginPath(); x.arc(44,59,4,0,7); x.fill();
+    x.strokeStyle=OUT; x.lineWidth=4; x.beginPath(); x.arc(40,86,12,.4,2.4); x.stroke();  // smile
+    x.fillStyle='rgba(238,110,140,.6)'; x.beginPath(); x.ellipse(74,84,10,7,0,0,7); x.fill(); });
+  const port=new THREE.Mesh(new THREE.CircleGeometry(1.9,24), new THREE.MeshBasicMaterial({map:dinoTex}));
+  port.position.set(0,2.6,3.62); rocket.add(port);
+  const rim=M(new THREE.TorusGeometry(1.95,.34,10,24),'#ffd54a'); rim.position.copy(port.position); rocket.add(rim);
+  // 🍓 decal
+  const berryTex=canvasTex(x=>{ x.clearRect(0,0,128,128); x.font='90px system-ui'; x.textAlign='center'; x.fillText('🍓',64,96); });
+  const decal=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4), new THREE.MeshBasicMaterial({map:berryTex,transparent:true}));
+  decal.position.set(0,-2.6,3.65); rocket.add(decal);
+}
+scene.add(rocket);
+
+/* ── exhaust: additive point cloud ── */
+const EXN=650, exG=new THREE.BufferGeometry();
+const exPos=new Float32Array(EXN*3), exLife=new Float32Array(EXN);
+exG.setAttribute('position', new THREE.BufferAttribute(exPos,3));
+const exhaust=new THREE.Points(exG, new THREE.PointsMaterial({color:'#ffb066', size:1.6, transparent:true, opacity:.9,
+  blending:THREE.AdditiveBlending, depthWrite:false}));
+scene.add(exhaust); let exI=0;
+
+/* ══ THE WORLD (translated down as we ascend) ══ */
+const world=new THREE.Group(); scene.add(world);
+{ // launchpad
+  const ground=M(new THREE.CylinderGeometry(90,90,4,36),'#a9d6ba',true); ground.position.y=-14; world.add(ground);
+  const pad=M(new THREE.CylinderGeometry(14,16,2.2,10),'#8b95a4',true); pad.position.y=-11.5; world.add(pad);
+  const tower=M(new THREE.BoxGeometry(2.6,30,2.6),'#c9ad6a',true); tower.position.set(-12,4,-4); world.add(tower);
+  for(let i=0;i<3;i++){ const arm=M(new THREE.BoxGeometry(7,.9,.9),'#c9ad6a'); arm.position.set(-8.6,-3+i*8,-4); world.add(arm); }
+  const blink=M(new THREE.SphereGeometry(.9,10,10),'#ff5c5c'); blink.position.set(-12,19.6,-4); world.add(blink);
+  setInterval(()=>{ blink.material.color.set(blink.material.color.getHex()===0xff5c5c?'#5c2020':'#ff5c5c'); },600);
+  for(let i=0;i<26;i++){ const tuft=M(new THREE.ConeGeometry(1.1,2.6,5),'#4bae5a',true);
+    const a=Math.random()*7, r=22+Math.random()*60; tuft.position.set(Math.cos(a)*r,-11,Math.sin(a)*r); world.add(tuft); }
+}
+const clouds=[];
+for(let i=0;i<34;i++){ const cl=new THREE.Group();
+  for(let j=0;j<3;j++){ const p=M(new THREE.SphereGeometry(5+Math.random()*5,10,8),'#ffffff',true);
+    p.position.set(j*7-7+Math.random()*3, Math.random()*2.5, Math.random()*3); p.material.transparent=true; p.material.opacity=.92; cl.add(p); }
+  cl.position.set((Math.random()-.5)*260, 90+Math.random()*560, (Math.random()-.5)*260-30);
+  clouds.push(cl); world.add(cl);
+}
+{ // stars (visible up high)
+  const N=900, pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){ const v=new THREE.Vector3().randomDirection().multiplyScalar(900+Math.random()*1500);
+    pos.set([v.x,v.y+700,v.z],i*3); }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  window.stars=new THREE.Points(g,new THREE.PointsMaterial({color:'#cfe2ff',size:2.4,transparent:true,opacity:0,depthWrite:false}));
+  scene.add(stars);
+}
+
+/* ══ STRAWBERRY WORLD — lit by real players ══ */
+const PLANET_Y=980, planet=new THREE.Group(); planet.position.y=PLANET_Y; world.add(planet);
+{
+  const skin=canvasTex((x,w,h)=>{ x.fillStyle=BERRY; x.fillRect(0,0,w,h);
+    for(let i=0;i<180;i++){ x.fillStyle=Math.random()<.85?'#ffe08a':'#ffd1dc'; x.save();
+      x.translate(Math.random()*w,Math.random()*h); x.rotate(Math.random()); x.beginPath();
+      x.ellipse(0,0,2.2,3.6,0,0,7); x.fill(); x.restore(); } },512,256);
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(78,48,32), new THREE.MeshLambertMaterial({map:skin}));
+  planet.add(ball);
+  const cap=M(new THREE.SphereGeometry(79,32,14,0,Math.PI*2,0,.62),'#4bae5a',true); planet.add(cap);   // leafy pole
+  const glow=new THREE.Mesh(new THREE.SphereGeometry(86,32,24),
+    new THREE.MeshBasicMaterial({color:'#ff8fa8', transparent:true, opacity:.14, side:THREE.BackSide, depthWrite:false}));
+  planet.add(glow);
+}
+const TZ_LL={ 'Europe/Minsk':[53,27],'Europe/Warsaw':[52,21],'Europe/London':[51,0],'Europe/Berlin':[52,13],
+  'Europe/Paris':[48,2],'Europe/Madrid':[40,-3],'Europe/Kyiv':[50,30],'Europe/Moscow':[55,37],'Europe/Istanbul':[41,29],
+  'Asia/Dubai':[25,55],'Asia/Tbilisi':[41,44],'Asia/Yerevan':[40,44],'Asia/Almaty':[43,76],'Asia/Tashkent':[41,69],
+  'Asia/Bangkok':[13,100],'Asia/Tokyo':[35,139],'Asia/Shanghai':[31,121],'Asia/Kolkata':[22,78],'Asia/Singapore':[1,103],
+  'America/New_York':[40,-74],'America/Chicago':[41,-87],'America/Denver':[39,-105],'America/Los_Angeles':[34,-118],
+  'America/Sao_Paulo':[-23,-46],'America/Mexico_City':[19,-99],'America/Toronto':[43,-79],
+  'Australia/Sydney':[-33,151],'Africa/Cairo':[30,31],'Africa/Lagos':[6,3],'Pacific/Auckland':[-36,174] };
+function llToV(lat,lon,r){ const ph=(90-lat)*Math.PI/180, th=(lon+180)*Math.PI/180;
+  return new THREE.Vector3(-r*Math.sin(ph)*Math.cos(th), r*Math.cos(ph), r*Math.sin(ph)*Math.sin(th)); }
+const beacons=[];
+function addBeacon(lat,lon,n){ const g=new THREE.Group(); g.position.copy(llToV(lat,lon,78));
+  g.lookAt(new THREE.Vector3(0,0,0)); g.rotateX(-Math.PI/2);
+  const cone=M(new THREE.ConeGeometry(2.2,7,8),'#ffd54a'); cone.position.y=4; g.add(cone);
+  const halo=new THREE.Mesh(new THREE.SphereGeometry(3+Math.min(4,n),10,10),
+    new THREE.MeshBasicMaterial({color:'#ffe08a', transparent:true, opacity:.45, depthWrite:false}));
+  halo.position.y=6; g.add(halo); beacons.push(halo); planet.add(g); }
+let satellite=null;
+fetch(TELEMETRY_EP).then(r=>r.json()).then(j=>{
+  if(j.wbest && j.wbest.sc){ satellite=new THREE.Group();
+    const crown=spriteText('👑 '+String(j.wbest.n).replace(/[^\w \-\.]/g,'')+' · '+j.wbest.sc, 40);
+    crown.position.y=3; satellite.add(crown);
+    const moon=M(new THREE.SphereGeometry(3.4,12,12),CREAM); satellite.add(moon); planet.add(satellite); }
+  (j.tzs||[]).forEach(t=>{ const ll=TZ_LL[t.tz]; if(ll) addBeacon(ll[0],ll[1],t.n|0); });
+  if(!(j.tzs||[]).length) [['Europe/Minsk',3],['Asia/Dubai',1],['Europe/Warsaw',1]].forEach(([z,n])=>{ const ll=TZ_LL[z]; addBeacon(ll[0],ll[1],n); });
+  try{ const sid=localStorage.getItem('dinoSid')||'rocket'; navigator.sendBeacon(TELEMETRY_EP,
+    JSON.stringify({ev:'rocket', v:56, sid, ua:navigator.userAgent.slice(0,180),
+      tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||''), lang:navigator.language||'', scr:screen.width+'x'+screen.height})); }catch(e){}
+}).catch(()=>{ [['Europe/Minsk',3],['Asia/Dubai',1]].forEach(([z,n])=>{ const ll=TZ_LL[z]; addBeacon(ll[0],ll[1],n); }); });
+
+/* ══ THE JOURNEY ══ */
+let target=0, p=FORCED_P??0, t=0;
+function onScroll(){ const m=document.documentElement.scrollHeight-innerHeight;
+  target=m>0?Math.max(0,Math.min(1,scrollY/m)):0; }
+addEventListener('scroll',onScroll,{passive:true}); onScroll();
+const altEl=document.getElementById('alt'), hintEl=document.getElementById('hint'),
+      titleEl=document.getElementById('title'), ctaEl=document.getElementById('cta');
+const ease=x=>x*x*(3-2*x);
+
+function frame(){ t++;
+  if(FORCED_P==null) p+=(target-p)*0.06;                                      // buttery scroll smoothing
+  const e=ease(p), ALT=e*(PLANET_Y-260);   // stop 260 short — the planet fills the sky, we don't fly into it
+  world.position.y=-ALT;
+
+  // rocket life: idle wobble → ignition rumble → cruise sway
+  const rumble=Math.max(0, Math.min(1,(p-.02)/.1)) * Math.max(0, 1-(p-.12)*4);
+  rocket.position.x=Math.sin(t*.6)*rumble*.5 + Math.sin(t*.02)*(p>.15?.8:0);
+  rocket.position.z=Math.cos(t*.53)*rumble*.4;
+  rocket.rotation.z=Math.sin(t*.017)*(p>.15?.05:0);
+
+  // camera: slow heroic orbit that widens with altitude, then pulls up to face the planet
+  const orb=.35+p*1.25, camR=26+Math.sin(p*Math.PI)*10;
+  cam.position.set(Math.sin(orb)*camR, 6+p*10, Math.cos(orb)*camR);
+  const look=new THREE.Vector3(0,4,0);
+  if(p>.8){ const k=ease((p-.8)/.2); look.lerp(new THREE.Vector3(0,PLANET_Y-ALT,0),k);   // eyes on the prize
+    cam.position.y+=k*26; }
+  cam.lookAt(look);
+  cam.position.x+=(Math.random()-.5)*rumble*1.6; cam.position.y+=(Math.random()-.5)*rumble*1.6;
+
+  // exhaust
+  if(p>.05 && p<.97){ for(let s=0;s<6;s++){ const i=exI++%EXN;
+      exPos[i*3]=rocket.position.x+(Math.random()-.5)*1.6; exPos[i*3+1]=-10; exPos[i*3+2]=rocket.position.z+(Math.random()-.5)*1.6; exLife[i]=1; } }
+  for(let i=0;i<EXN;i++){ if(exLife[i]>0){ exLife[i]-=.02; exPos[i*3+1]-=1.6+Math.random(); exPos[i*3]+=(Math.random()-.5)*.5; }
+    else exPos[i*3+1]=-9999; }
+  exG.attributes.position.needsUpdate=true;
+
+  // sky + stars + planet dressing
+  renderer.setClearColor(SKY_DAWN.clone().lerp(SKY_SPACE, ease(Math.min(1,p*1.5))));
+  stars.material.opacity=Math.max(0,(p-.45)*2);
+  beacons.forEach((b,i)=>{ const s=1+Math.sin(t*.06+i)*.25; b.scale.set(s,s,s); });
+  if(satellite){ const a=t*.008; satellite.position.set(Math.cos(a)*112, 26, Math.sin(a)*112); }
+  planet.rotation.y+=.0012;
+  clouds.forEach(c=>{ c.position.x+=Math.sin(t*.005+c.position.z)*.02; });
+
+  // HUD
+  altEl.textContent='ALT '+(ALT<400?Math.round(ALT*250)+' m':(ALT*.25).toFixed(0)+' km');
+  hintEl.style.opacity=p<.04?1:0;
+  titleEl.style.opacity=p<.1?1:Math.max(0,1-(p-.1)*6);
+  ctaEl.classList.toggle('show', p>.94);
+  renderer.render(scene,cam);
+  requestAnimationFrame(frame);
+}
+function resize(){ renderer.setSize(innerWidth,innerHeight); cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize(); frame();
+</script>
+</body>
+</html>
