@@ -47,13 +47,18 @@ function doGet(){
     for(const r of rows){                                              // single pass — one Date per row
       if(r[0] && new Date(r[0]).toDateString() === today){
         res.pings++; todaySids.add(String(r[3]));
-        if((r[4]|0) > res.best && (r[4]|0) <= 30000) res.best = r[4]|0;
+        if((r[1]==='over'||r[1]==='exit') && (r[4]|0) > res.best && (r[4]|0) <= 30000) res.best = r[4]|0;
       }
-      if(r[1] === 'over' && (r[4]|0) > 0 && (r[4]|0) <= 30000){        // sanity cap keeps junk off the world board
-        const sc = r[4]|0, nm = String(r[12]||'').slice(0,10) || 'dino';
+      // board candidate = best of run score (over/exit rows) and the device's self-reported all-time hi
+      // (hi rides in EVERY ping, so runs lost to throttling/app-kill are still recovered here)
+      const runSc = (r[1]==='over'||r[1]==='exit') ? (r[4]|0) : 0;
+      const hiSc  = r[5]|0;
+      const cand  = Math.max(runSc<=30000?runSc:0, hiSc<=30000?hiSc:0);   // sanity caps keep junk off the board
+      if(cand > 0){
+        const nm = String(r[12]||'').slice(0,10) || 'dino';
         // named players merge by name (alex+Alex = one kid, any device); ALL anonymous runs share one "dino" line
         const key = nm.toLowerCase() !== 'dino' ? 'n:' + nm.toLowerCase() : 'anon';
-        if(!bySid[key] || sc > bySid[key].sc) bySid[key] = { n:nm, sc:sc };
+        if(!bySid[key] || cand > bySid[key].sc) bySid[key] = { n:nm, sc:cand };
       }
     }
     res.players = todaySids.size;
@@ -83,7 +88,7 @@ function buildDashboard(){
   d.getRange(1,11).setValue('🛍 Best sellers').setFontWeight('bold');
   d.getRange(2,11).setFormula('=QUERY(pings!B:Y,"select X, count(X), sum(Y) where B=\'buy\' group by X order by count(X) desc label X \'item\', count(X) \'buys\', sum(Y) \'berries\'",0)');
   d.getRange(1,14).setValue('🌍 World top-10').setFontWeight('bold');
-  d.getRange(2,14).setFormula('=QUERY(pings!B:M,"select M, max(E) where B=\'over\' and E>0 and E<=30000 group by M order by max(E) desc limit 10 label M \'name\', max(E) \'score\'",0)');
+  d.getRange(2,14).setFormula('=QUERY(pings!B:M,"select M, max(F) where F>0 and F<=30000 and M<>\'\' group by M order by max(F) desc limit 10 label M \'name\', max(F) \'score\'",0)');
   d.setFrozenRows(2);
 }
 
