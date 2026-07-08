@@ -43,20 +43,24 @@ function doGet(){
   const res = { date:new Date().toDateString(), pings:0, players:0, best:0, wbest:null, top:[] };
   if(sh && sh.getLastRow() > 1){
     const rows = sh.getRange(2,1,sh.getLastRow()-1,14).getValues();   // ts..cause
-    const today = new Date().toDateString(), bySid = {}, todaySids = new Set();
-    for(const r of rows){                                              // single pass — one Date per row
+    const today = new Date().toDateString(), bySid = {}, todaySids = new Set(), sidName = {};
+    for(const r of rows){                                              // pass 1: today stats + device→name map
+      const nm0 = String(r[12]||'');
+      if(nm0 && nm0.toLowerCase() !== 'dino') sidName[String(r[3])] = nm0.slice(0,10);
       if(r[0] && new Date(r[0]).toDateString() === today){
         res.pings++; todaySids.add(String(r[3]));
         if((r[1]==='over'||r[1]==='exit') && (r[4]|0) > res.best && (r[4]|0) <= 30000) res.best = r[4]|0;
       }
-      // board candidate = best of run score (over/exit rows) and the device's self-reported all-time hi
-      // (hi rides in EVERY ping, so runs lost to throttling/app-kill are still recovered here)
+    }
+    for(const r of rows){                                              // pass 2: board candidates
+      // best of run score (over/exit) and the device's all-time hi (hi rides in EVERY ping —
+      // recovers runs lost to throttling/app-kill)
       const runSc = (r[1]==='over'||r[1]==='exit') ? (r[4]|0) : 0;
       const hiSc  = r[5]|0;
       const cand  = Math.max(runSc<=30000?runSc:0, hiSc<=30000?hiSc:0);   // sanity caps keep junk off the board
       if(cand > 0){
-        const nm = String(r[12]||'').slice(0,10) || 'dino';
-        // named players merge by name (alex+Alex = one kid, any device); ALL anonymous runs share one "dino" line
+        // anonymous rows from a device we know by name belong to that name — no ghost duplicates
+        const nm = (String(r[12]||'').slice(0,10)) || sidName[String(r[3])] || 'dino';
         const key = nm.toLowerCase() !== 'dino' ? 'n:' + nm.toLowerCase() : 'anon';
         if(!bySid[key] || cand > bySid[key].sc) bySid[key] = { n:nm, sc:cand };
       }
