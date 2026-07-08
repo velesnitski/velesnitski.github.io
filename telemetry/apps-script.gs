@@ -43,10 +43,11 @@ function doGet(){
   const res = { date:new Date().toDateString(), pings:0, players:0, best:0, wbest:null, top:[] };
   if(sh && sh.getLastRow() > 1){
     const rows = sh.getRange(2,1,sh.getLastRow()-1,14).getValues();   // ts..cause
-    const today = new Date().toDateString(), bySid = {}, todaySids = new Set(), sidName = {};
-    for(const r of rows){                                              // pass 1: today stats + device→name map
+    const today = new Date().toDateString(), bySid = {}, todaySids = new Set(), sidName = {}, sidTz = {};
+    for(const r of rows){                                              // pass 1: today stats + device→name/tz maps
       const nm0 = String(r[12]||'');
       if(nm0 && nm0.toLowerCase() !== 'dino') sidName[String(r[3])] = nm0.slice(0,10);
+      if(r[10]) sidTz[String(r[3])] = String(r[10]).slice(0,48);
       if(r[0] && new Date(r[0]).toDateString() === today){
         res.pings++; todaySids.add(String(r[3]));
         if((r[1]==='over'||r[1]==='exit') && (r[4]|0) > res.best && (r[4]|0) <= 30000) res.best = r[4]|0;
@@ -68,6 +69,9 @@ function doGet(){
     res.players = todaySids.size;
     res.top = Object.values(bySid).sort((a,b)=>b.sc-a.sc).slice(0,10);
     res.wbest = res.top[0] || null;
+    const tzCount = {};                                                // distinct devices per timezone → the planet's beacons
+    for(const s in sidTz) tzCount[sidTz[s]] = (tzCount[sidTz[s]]||0)+1;
+    res.tzs = Object.entries(tzCount).map(([tz,n])=>({tz,n})).sort((a,b)=>b.n-a.n).slice(0,40);
   }
   cache.put('agg', JSON.stringify(res), 300);
   return json_(res);
