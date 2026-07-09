@@ -28,7 +28,7 @@
     a wobbly rocket · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v7</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v8</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -117,27 +117,27 @@ const finGrps=[];
   // tail-mounted fins — rooted low where the hull tapers, so the leading edge exits the
   // surface at a steep angle (a clean intersection line, not a tangent graze up the belly)
   const finShape=new THREE.Shape();
-  finShape.moveTo(-.45,1.4);                               // root top, just inside the hull
-  finShape.quadraticCurveTo(2.2,.4, 3.6,-2.6);             // swept leading edge
-  finShape.quadraticCurveTo(3.95,-3.6, 3.75,-4.9);         // outer edge
-  finShape.quadraticCurveTo(2.9,-5.5, 2.3,-5.0);           // bottom tip (boot mounts here)
-  finShape.quadraticCurveTo(.5,-3.9, -.45,-3.2);           // trailing edge back into the hull
-  finShape.lineTo(-.45,1.4);
+  finShape.moveTo(-.45,1.6);                               // root top, just inside the hull
+  finShape.quadraticCurveTo(1.7,-.4, 3.7,-4.4);            // ONE continuous swept leading edge — triangular sail
+  finShape.quadraticCurveTo(4.05,-5.0, 3.55,-5.45);        // rounded foot tip (boot mounts here)
+  finShape.quadraticCurveTo(1.5,-5.0, -.45,-4.5);          // bottom edge climbing gently back to the root
+  finShape.lineTo(-.45,1.6);
   const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.8,bevelEnabled:true,
-    bevelThickness:.2,bevelSize:.2,bevelSegments:3,curveSegments:14});
+    bevelThickness:.24,bevelSize:.24,bevelSegments:3,curveSegments:14});
   finGeo.translate(0,0,-.4);
-  { // airfoil taper — thick at the root, thin at the tip, like a real fin
+  { // airfoil taper + CAMBER — thin toward the tip AND bend the plate like a petal,
+    // so the big side faces carry a light gradient instead of reading as flat slabs
     const pa=finGeo.attributes.position;
     for(let i=0;i<pa.count;i++){ const d=Math.min(1,Math.max(0,pa.getX(i)/3.9));
-      pa.setZ(i, pa.getZ(i)*(1-.7*d)); }
+      pa.setZ(i, pa.getZ(i)*(1-.72*d) - .55*d*d); }
     finGeo.computeVertexNormals(); }
   // 4 fins at 90°, offset 45° from the camera — always two clean symmetric profiles, none flat-on
   for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2, g=new THREE.Group();
     g.position.set(Math.cos(a)*3.0,-4.6,Math.sin(a)*3.0); g.rotation.y=-a; g.userData.a=a;
     const fin=P(finGeo,SPACE_BLUE,45); fin.rotation.y=-Math.PI/2; g.add(fin);
     // landing booties — gold pads on the fin tips (it lands on its feet, like any good toy)
-    const boot=P(new THREE.SphereGeometry(.8,14,12),'#ffd54a',70);
-    boot.scale.y=.62; boot.position.set(0,-5.1,2.7); g.add(boot);
+    const boot=P(new THREE.SphereGeometry(.75,14,12),'#ffd54a',70);
+    boot.scale.y=.62; boot.position.set(.45,-5.35,3.4); g.add(boot);
     finGrps.push(g); squash.add(g); }
   // flared engine bell, gunmetal, double-sided so the inside reads as metal, with a dark throat
   const nozzle=lathe([[.9,0],[1.75,-.2],[2.05,-.95],[2.5,-1.9],[2.8,-2.55],[2.55,-2.75]],'#3f4756',40);
@@ -446,6 +446,7 @@ addEventListener('pagehide',()=>{ if(pokes>0)
 if(Q.has('kick')){ const [kx,ky,ks]=(Q.get('kick')||'').split(',').map(Number);
   setTimeout(()=>{ vel.set(kx||30,ky||-10,0); angVel.set(0,0,ks||6); },600); }
 const FORCED_FACE=Q.get('face')||null;
+const LOWCAM=Q.has('lowcam');   // debug: the fin-inspection angle
 
 /* ══ LOOP — fixed-timestep sim (the game taught us: never tie physics to display Hz) ══ */
 const SIM=1/60; let last=performance.now(), acc=0, t=0;
@@ -462,9 +463,12 @@ function frame(now){
   if(satellite){ const a=t*.008; satellite.position.set(Math.cos(a)*112, 26, Math.sin(a)*112); }
 
   // whisper of parallax toward the pointer keeps the frame alive
-  cam.position.x+=((mouseX*1.6)-cam.position.x)*.03;
-  cam.position.y+=((2.5+mouseY*1.2)-cam.position.y)*.03;
-  cam.lookAt(0,1,0);
+  if(LOWCAM){ cam.position.set(5,-16,26); cam.lookAt(0,-7,0); }
+  else{
+    cam.position.x+=((mouseX*1.6)-cam.position.x)*.03;
+    cam.position.y+=((2.5+mouseY*1.2)-cam.position.y)*.03;
+    cam.lookAt(0,1,0);
+  }
   renderer.render(scene,cam);
   requestAnimationFrame(frame);
 }
