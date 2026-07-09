@@ -28,7 +28,7 @@
     a wobbly rocket · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v3</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v4</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -98,6 +98,7 @@ function setFace(s){ if(s!==faceState){ faceState=s; drawFace(s); } }
 const root=new THREE.Group(), squash=new THREE.Group();
 root.add(squash); scene.add(root);
 const noseGrp=new THREE.Group(); noseGrp.position.y=8;
+const antGrp=new THREE.Group(); antGrp.position.y=4.3;      // antenna pivots at its base on the dome tip
 const finGrps=[];
 {
   // one continuous bullet profile — no seams, no facets, just emoji curves
@@ -108,14 +109,23 @@ const finGrps=[];
   noseGrp.add(lathe([[.01,-1.6],[2.62,-1.55],[2.5,-.6],[2.25,.5],[1.9,1.6],
     [1.45,2.7],[.95,3.6],[.5,4.2],[.01,4.5]],BERRY,55));
   squash.add(noseGrp);
+  // bobble antenna — nested in the nose so its wobble compounds with the nose's
+  const stem=P(new THREE.CylinderGeometry(.11,.17,2.2,10),'#c9d2df',60); stem.position.y=1.1; antGrp.add(stem);
+  const bob=P(new THREE.SphereGeometry(.6,16,16),'#ffd54a',90); bob.position.y=2.4; antGrp.add(bob);
+  noseGrp.add(antGrp);
   // swoosh fins — beveled extrusions of a curved profile, like the emoji's swept fins
   const finShape=new THREE.Shape();
   finShape.moveTo(0,.4); finShape.quadraticCurveTo(3.1,-2.2,4.3,-6.4);
   finShape.quadraticCurveTo(4.5,-7.5,3.5,-7.2); finShape.quadraticCurveTo(1.3,-6.1,-.05,-5.4);
   finShape.lineTo(0,.4);
-  const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.6,bevelEnabled:true,
-    bevelThickness:.28,bevelSize:.28,bevelSegments:3,curveSegments:14});
-  finGeo.translate(0,0,-.3);
+  const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.9,bevelEnabled:true,
+    bevelThickness:.3,bevelSize:.3,bevelSegments:3,curveSegments:14});
+  finGeo.translate(0,0,-.45);
+  { // airfoil taper — thick at the root, thin at the tip, like a real fin
+    const pa=finGeo.attributes.position;
+    for(let i=0;i<pa.count;i++){ const d=Math.min(1,Math.max(0,pa.getX(i)/4.4));
+      pa.setZ(i, pa.getZ(i)*(1-.7*d)); }
+    finGeo.computeVertexNormals(); }
   for(let i=0;i<3;i++){ const a=i/3*Math.PI*2, g=new THREE.Group();
     g.position.set(Math.cos(a)*3.15,-2.2,Math.sin(a)*3.15); g.rotation.y=-a; g.userData.a=a;
     const fin=P(finGeo,BERRY,45); fin.rotation.y=-Math.PI/2; g.add(fin);
@@ -129,6 +139,21 @@ const finGrps=[];
   const berryTex=canvasTex(x=>{ x.clearRect(0,0,128,128); x.font='90px system-ui'; x.textAlign='center'; x.fillText('🍓',64,96); });
   const decal=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4), new THREE.MeshBasicMaterial({map:berryTex,transparent:true}));
   decal.position.set(0,-2.8,3.78); squash.add(decal);
+  // gold trim ring around the belly — every good retro rocket has one
+  const ring=P(new THREE.TorusGeometry(3.46,.16,12,48),'#ffd54a',85);
+  ring.rotation.x=Math.PI/2; ring.position.y=-4.6; squash.add(ring);
+  // a band-aid: this rocket gets flung into walls for a living
+  const bandTex=canvasTex(x=>{ x.clearRect(0,0,128,128); x.translate(64,64); x.rotate(.55);
+    const rr=(a,b,w,h,r)=>{ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r);
+      x.arcTo(a+w,b+h,a,b+h,r); x.arcTo(a,b+h,a,b,r); x.arcTo(a,b,a+w,b,r); x.fill(); };
+    x.fillStyle='#e8c9a0'; rr(-46,-15,92,30,13);
+    x.fillStyle='#d9b489'; rr(-15,-11,30,22,7);
+    x.fillStyle='rgba(120,90,55,.5)';
+    for(let i=0;i<6;i++){ x.beginPath(); x.arc(-8+(i%3)*8,-4+((i/3)|0)*8,1.3,0,7); x.fill(); } });
+  const band=new THREE.Mesh(new THREE.PlaneGeometry(2.7,2.7),
+    new THREE.MeshBasicMaterial({map:bandTex,transparent:true}));
+  band.position.set(Math.sin(-.5)*3.36, 4.1, Math.cos(-.5)*3.36);
+  band.lookAt(band.position.clone().multiplyScalar(3)); squash.add(band);
 }
 setFace('normal');
 // fat invisible hit capsule — generous target for little fingers
@@ -227,12 +252,22 @@ let wallX=20, wallTop=12, wallBot=12;                 // set in resize() from th
 let grabbed=false, grabLocal=new THREE.Vector3(), dragPlane=new THREE.Plane(),
     dragTarget=new THREE.Vector3(), samples=[], downAt=0, downPos=new THREE.Vector3();
 let pokes=0, lastTouch=-9, dizzy=0, dizzyUntil=0, simT=0;
-const jig=[{k:.12,rx:0,rz:0,vx:0,vz:0}];              // nose…
-finGrps.forEach(()=>jig.push({k:.2,rx:0,rz:0,vx:0,vz:0}));   // …+3 floppier fins
+const jig=[{g:noseGrp,k:.12},{g:antGrp,k:.5}];        // nose + extra-floppy antenna…
+finGrps.forEach(g=>jig.push({g,k:.2}));               // …+3 fins
+jig.forEach(j=>{ j.rx=j.rz=j.vx=j.vz=0; });
 const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(), tmpV=new THREE.Vector3(), tmpV2=new THREE.Vector3();
 
 function kickJiggle(s){ jig.forEach(j=>{ j.vx+=(Math.random()-.5)*s; j.vz+=(Math.random()-.5)*s; }); }
+// smoke rings — the bell puffs a wobbly donut on a hard bounce
+const rings=[]; let ringI=0;
+for(let i=0;i<4;i++){ const m=new THREE.Mesh(new THREE.TorusGeometry(1,.32,10,24),
+  new THREE.MeshBasicMaterial({color:'#cfd8e6',transparent:true,opacity:0,depthWrite:false}));
+  m.visible=false; scene.add(m); rings.push({m,t:9}); }
+function smokeRing(){ const R=rings[ringI++%4]; R.t=0; R.m.visible=true;
+  R.m.position.copy(root.localToWorld(new THREE.Vector3(0,-11.5,0)));
+  R.m.quaternion.copy(quat); R.m.rotateX(Math.PI/2); }
 function bounce(axis,v){ boing(Math.abs(v)); sqVel+=Math.min(3,Math.abs(v)*.12); kickJiggle(Math.abs(v)*.5);
+  if(Math.abs(v)>14) smokeRing();
   angVel.z+=(axis==='x'? -Math.sign(v)*Math.abs(vel.y):Math.sign(vel.x))*.03; }
 
 function step(dt){
@@ -282,13 +317,13 @@ function step(dt){
   // jiggle bones — driven by how hard the body is being shoved around
   const acc=tmpV.copy(vel).sub(prevVel).divideScalar(dt); prevVel.copy(vel);
   const la=acc.applyQuaternion(quat.clone().invert());
-  jig.forEach((j,i)=>{
+  jig.forEach(j=>{
     let ax=la.x, az=la.z;
-    if(i>0){ const a=finGrps[i-1].userData.a, c=Math.cos(a), sn=Math.sin(a);
+    if(j.g.userData.a!==undefined){ const a=j.g.userData.a, c=Math.cos(a), sn=Math.sin(a);
       ax=c*la.x+sn*la.z; az=-sn*la.x+c*la.z; }
     j.vx+=(-140*j.rx-6*j.vx+az*j.k)*dt; j.vz+=(-140*j.rz-6*j.vz-ax*j.k)*dt;
     j.rx=Math.max(-.55,Math.min(.55,j.rx+j.vx*dt)); j.rz=Math.max(-.55,Math.min(.55,j.rz+j.vz*dt));
-    const g=i? finGrps[i-1]:noseGrp; g.rotation.x=j.rx; g.rotation.z=j.rz;
+    j.g.rotation.x=j.rx; j.g.rotation.z=j.rz;
   });
 
   // face: spun hard → dizzy · moving fast → wheee · else blink now and then
@@ -309,6 +344,9 @@ function step(dt){
       exPos[i*3]+=exVel[i*3]*dt; exPos[i*3+1]+=exVel[i*3+1]*dt; exPos[i*3+2]+=exVel[i*3+2]*dt; }
     else exPos[i*3+1]=9999; }
   exG.attributes.position.needsUpdate=true;
+  rings.forEach(R=>{ if(R.t<.9){ R.t+=dt; const s=1+R.t*6; R.m.scale.set(s,s,s);
+      R.m.material.opacity=.5*Math.max(0,1-R.t/.9); R.m.position.y-=dt*3; }
+    else R.m.visible=false; });
 
   // a shy little "hey, poke me" wiggle if ignored for a while
   if(!REDUCED && !grabbed && simT-lastTouch>13){ lastTouch=simT-13+5+Math.random()*6;
