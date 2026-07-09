@@ -28,7 +28,7 @@
     a wobbly rocket · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v8</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v9</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -125,11 +125,11 @@ const finGrps=[];
   const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.8,bevelEnabled:true,
     bevelThickness:.24,bevelSize:.24,bevelSegments:3,curveSegments:14});
   finGeo.translate(0,0,-.4);
-  { // airfoil taper + CAMBER — thin toward the tip AND bend the plate like a petal,
-    // so the big side faces carry a light gradient instead of reading as flat slabs
+  { // airfoil taper — thin toward the tip; the plate stays a true radial plane,
+    // perpendicular to the fuselage like the emoji's fins (no camber, no lean)
     const pa=finGeo.attributes.position;
     for(let i=0;i<pa.count;i++){ const d=Math.min(1,Math.max(0,pa.getX(i)/3.9));
-      pa.setZ(i, pa.getZ(i)*(1-.72*d) - .55*d*d); }
+      pa.setZ(i, pa.getZ(i)*(1-.72*d)); }
     finGeo.computeVertexNormals(); }
   // 4 fins at 90°, offset 45° from the camera — always two clean symmetric profiles, none flat-on
   for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2, g=new THREE.Group();
@@ -137,7 +137,7 @@ const finGrps=[];
     const fin=P(finGeo,SPACE_BLUE,45); fin.rotation.y=-Math.PI/2; g.add(fin);
     // landing booties — gold pads on the fin tips (it lands on its feet, like any good toy)
     const boot=P(new THREE.SphereGeometry(.75,14,12),'#ffd54a',70);
-    boot.scale.y=.62; boot.position.set(.45,-5.35,3.4); g.add(boot);
+    boot.scale.y=.62; boot.position.set(0,-5.35,3.4); g.add(boot);
     finGrps.push(g); squash.add(g); }
   // flared engine bell, gunmetal, double-sided so the inside reads as metal, with a dark throat
   const nozzle=lathe([[.9,0],[1.75,-.2],[2.05,-.95],[2.5,-1.9],[2.8,-2.55],[2.55,-2.75]],'#3f4756',40);
