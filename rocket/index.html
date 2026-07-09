@@ -28,7 +28,7 @@
     a wobbly rocket · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v6</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v7</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -114,29 +114,30 @@ const finGrps=[];
   const stem=P(new THREE.CylinderGeometry(.15,.22,2.2,10),'#c9d2df',60); stem.position.y=1.1; antGrp.add(stem);
   const bob=P(new THREE.SphereGeometry(.6,16,16),'#ffd54a',90); bob.position.y=2.4; antGrp.add(bob);
   noseGrp.add(antGrp);
-  // swept fins ROOTED in the hull — long attachment chord buried inside the body, no floating gap
+  // tail-mounted fins — rooted low where the hull tapers, so the leading edge exits the
+  // surface at a steep angle (a clean intersection line, not a tangent graze up the belly)
   const finShape=new THREE.Shape();
-  finShape.moveTo(-.9,.8);                                 // root edge starts inside the hull
-  finShape.quadraticCurveTo(2.6,-1.4, 4.1,-5.2);           // swept leading edge
-  finShape.quadraticCurveTo(4.55,-6.4, 4.35,-7.3);         // outer edge
-  finShape.quadraticCurveTo(3.2,-7.7, 2.5,-7.1);           // flat-ish bottom tip (boot mounts here)
-  finShape.quadraticCurveTo(.6,-5.6, -.9,-4.6);            // trailing edge back into the hull
-  finShape.lineTo(-.9,.8);
-  const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.9,bevelEnabled:true,
-    bevelThickness:.3,bevelSize:.3,bevelSegments:3,curveSegments:14});
-  finGeo.translate(0,0,-.45);
+  finShape.moveTo(-.45,1.4);                               // root top, just inside the hull
+  finShape.quadraticCurveTo(2.2,.4, 3.6,-2.6);             // swept leading edge
+  finShape.quadraticCurveTo(3.95,-3.6, 3.75,-4.9);         // outer edge
+  finShape.quadraticCurveTo(2.9,-5.5, 2.3,-5.0);           // bottom tip (boot mounts here)
+  finShape.quadraticCurveTo(.5,-3.9, -.45,-3.2);           // trailing edge back into the hull
+  finShape.lineTo(-.45,1.4);
+  const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.8,bevelEnabled:true,
+    bevelThickness:.2,bevelSize:.2,bevelSegments:3,curveSegments:14});
+  finGeo.translate(0,0,-.4);
   { // airfoil taper — thick at the root, thin at the tip, like a real fin
     const pa=finGeo.attributes.position;
-    for(let i=0;i<pa.count;i++){ const d=Math.min(1,Math.max(0,pa.getX(i)/4.4));
+    for(let i=0;i<pa.count;i++){ const d=Math.min(1,Math.max(0,pa.getX(i)/3.9));
       pa.setZ(i, pa.getZ(i)*(1-.7*d)); }
     finGeo.computeVertexNormals(); }
   // 4 fins at 90°, offset 45° from the camera — always two clean symmetric profiles, none flat-on
   for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2, g=new THREE.Group();
-    g.position.set(Math.cos(a)*2.85,-2.2,Math.sin(a)*2.85); g.rotation.y=-a; g.userData.a=a;
+    g.position.set(Math.cos(a)*3.0,-4.6,Math.sin(a)*3.0); g.rotation.y=-a; g.userData.a=a;
     const fin=P(finGeo,SPACE_BLUE,45); fin.rotation.y=-Math.PI/2; g.add(fin);
     // landing booties — gold pads on the fin tips (it lands on its feet, like any good toy)
-    const boot=P(new THREE.SphereGeometry(.85,14,12),'#ffd54a',70);
-    boot.scale.y=.62; boot.position.set(0,-7.5,3.3); g.add(boot);
+    const boot=P(new THREE.SphereGeometry(.8,14,12),'#ffd54a',70);
+    boot.scale.y=.62; boot.position.set(0,-5.1,2.7); g.add(boot);
     finGrps.push(g); squash.add(g); }
   // flared engine bell, gunmetal, double-sided so the inside reads as metal, with a dark throat
   const nozzle=lathe([[.9,0],[1.75,-.2],[2.05,-.95],[2.5,-1.9],[2.8,-2.55],[2.55,-2.75]],'#3f4756',40);
@@ -160,9 +161,6 @@ const finGrps=[];
   const berryTex=canvasTex(x=>{ x.clearRect(0,0,128,128); x.font='90px system-ui'; x.textAlign='center'; x.fillText('🍓',64,96); });
   const decal=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4), new THREE.MeshBasicMaterial({map:berryTex,transparent:true}));
   decal.position.set(0,-2.8,3.78); squash.add(decal);
-  // gold trim ring around the belly — every good retro rocket has one
-  const ring=P(new THREE.TorusGeometry(3.46,.16,12,48),'#ffd54a',85);
-  ring.rotation.x=Math.PI/2; ring.position.y=-4.6; squash.add(ring);
   // collar band over the nose joint — the seam becomes an intentional staging line
   const collar=P(new THREE.TorusGeometry(2.6,.2,12,40),'#ffd54a',85);
   collar.rotation.x=Math.PI/2; collar.position.y=6.42; squash.add(collar);
