@@ -28,7 +28,7 @@
     a wobbly rocket · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v4</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v5</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -39,7 +39,7 @@ const Q=new URLSearchParams(location.search);
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ── palette: Strawberry Dash's own colors ── */
-const MINT='#7fd6b0', BERRY='#e5384e', CREAM='#f3e6c6', OUT='#26383f';
+const MINT='#7fd6b0', BERRY='#e5384e', CREAM='#f3e6c6', OUT='#26383f', SPACE_BLUE='#3d5bc0';
 
 const canvas=document.getElementById('c');
 const renderer=new THREE.WebGLRenderer({canvas, antialias:true});
@@ -51,6 +51,7 @@ const cam=new THREE.PerspectiveCamera(45, innerWidth/innerHeight, .1, 2000);
 cam.position.set(0,2.5,CAMZ);
 scene.add(new THREE.HemisphereLight(0xffffff, 0x39465c, 1.05));
 const sun=new THREE.DirectionalLight(0xfff2d0, 1.1); sun.position.set(60,80,50); scene.add(sun);
+const rimL=new THREE.DirectionalLight('#6f8fff', .7); rimL.position.set(-50,20,-60); scene.add(rimL);   // cold space rim
 
 /* ── tiny helpers ── */
 const M=(geo,color,flat)=>new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color, flatShading:!!flat}));
@@ -107,7 +108,7 @@ const finGrps=[];
   squash.add(body);
   // rounded dome cap, overlapping the body so the color seam is clean
   noseGrp.add(lathe([[.01,-1.6],[2.62,-1.55],[2.5,-.6],[2.25,.5],[1.9,1.6],
-    [1.45,2.7],[.95,3.6],[.5,4.2],[.01,4.5]],BERRY,55));
+    [1.45,2.7],[.95,3.6],[.5,4.2],[.01,4.5]],SPACE_BLUE,55));
   squash.add(noseGrp);
   // bobble antenna — nested in the nose so its wobble compounds with the nose's
   const stem=P(new THREE.CylinderGeometry(.11,.17,2.2,10),'#c9d2df',60); stem.position.y=1.1; antGrp.add(stem);
@@ -126,13 +127,16 @@ const finGrps=[];
     for(let i=0;i<pa.count;i++){ const d=Math.min(1,Math.max(0,pa.getX(i)/4.4));
       pa.setZ(i, pa.getZ(i)*(1-.7*d)); }
     finGeo.computeVertexNormals(); }
-  for(let i=0;i<3;i++){ const a=i/3*Math.PI*2, g=new THREE.Group();
+  // 4 fins at 90°, offset 45° from the camera — always two clean symmetric profiles, none flat-on
+  for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2, g=new THREE.Group();
     g.position.set(Math.cos(a)*3.15,-2.2,Math.sin(a)*3.15); g.rotation.y=-a; g.userData.a=a;
-    const fin=P(finGeo,BERRY,45); fin.rotation.y=-Math.PI/2; g.add(fin);
+    const fin=P(finGeo,SPACE_BLUE,45); fin.rotation.y=-Math.PI/2; g.add(fin);
     finGrps.push(g); squash.add(g); }
-  // flared engine bell
-  const nozzle=lathe([[.9,0],[1.75,-.2],[2.05,-.95],[2.5,-1.9],[2.8,-2.55],[2.55,-2.75]],'#8b95a4',30);
+  // flared engine bell, gunmetal
+  const nozzle=lathe([[.9,0],[1.75,-.2],[2.05,-.95],[2.5,-1.9],[2.8,-2.55],[2.55,-2.75]],'#3f4756',40);
   nozzle.position.y=-8.2; squash.add(nozzle);
+  const engLight=new THREE.PointLight('#ffb066', 0, 30); engLight.position.y=-12; squash.add(engLight);
+  window.engLight=engLight;
   const port=new THREE.Mesh(new THREE.CircleGeometry(1.9,32), new THREE.MeshBasicMaterial({map:faceTex}));
   port.position.set(0,2.6,3.66); squash.add(port);
   const rim=P(new THREE.TorusGeometry(1.95,.34,12,32),'#ffd54a',80); rim.position.copy(port.position); squash.add(rim);
@@ -180,13 +184,19 @@ function puff(px,py,pz,vx,vy,vz){ const i=exI++%EXN;
   exLife[i]=.5+Math.random()*.4; }
 
 /* ── stars, twinkling in two phases ── */
-function starCloud(n,size){ const pos=new Float32Array(n*3);
+function starCloud(n,size,color){ const pos=new Float32Array(n*3);
   for(let i=0;i<n;i++){ const v=new THREE.Vector3().randomDirection().multiplyScalar(300+Math.random()*900);
     pos.set([v.x,v.y,v.z-200],i*3); }
   const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
-  const p=new THREE.Points(g,new THREE.PointsMaterial({color:'#cfe2ff',size,transparent:true,opacity:.8,depthWrite:false}));
+  const p=new THREE.Points(g,new THREE.PointsMaterial({color,size,transparent:true,opacity:.8,depthWrite:false}));
   scene.add(p); return p; }
-const stars1=starCloud(500,2.2), stars2=starCloud(400,1.4);
+const stars1=starCloud(500,2.2,'#cfe2ff'), stars2=starCloud(400,1.4,'#ffe3b8');   // cool + warm layers
+// a shooting star now and then
+const shoot=new THREE.Mesh(new THREE.PlaneGeometry(9,.14),
+  new THREE.MeshBasicMaterial({color:'#eaf2ff',transparent:true,opacity:0,
+    blending:THREE.AdditiveBlending,depthWrite:false}));
+shoot.rotation.z=-.5; shoot.visible=false; scene.add(shoot);
+let shootT=9, shootNext=6;
 
 /* ══ the little strawberry planet, far away, lit by real players ══ */
 const planet=new THREE.Group(); planet.position.set(-42,22,-170); planet.scale.setScalar(.34); scene.add(planet);
@@ -337,6 +347,7 @@ function step(dt){
 
   // engine: exhaust + flame while it's really moving
   flame.visible=speed>8;
+  engLight.intensity=flame.visible? 1.8+Math.random()*1.2 : 0;
   if(flame.visible){ flame.scale.y=.7+Math.random()*.7;
     const noz=root.localToWorld(tmpV.copy(flame.position));
     puff(noz.x,noz.y,noz.z, -vel.x*.2, -vel.y*.2, -vel.z*.2); }
@@ -347,6 +358,14 @@ function step(dt){
   rings.forEach(R=>{ if(R.t<.9){ R.t+=dt; const s=1+R.t*6; R.m.scale.set(s,s,s);
       R.m.material.opacity=.5*Math.max(0,1-R.t/.9); R.m.position.y-=dt*3; }
     else R.m.visible=false; });
+
+  // shooting star: streaks down-left across the far background every so often
+  shootT+=dt;
+  if(shootT>shootNext){ shootT=0; shootNext=11+Math.random()*14;
+    shoot.position.set(20+Math.random()*60, 25+Math.random()*20, -140); shoot.visible=true; }
+  if(shoot.visible){ shoot.position.x-=dt*90; shoot.position.y-=dt*46;
+    shoot.material.opacity=Math.min(.9, shoot.material.opacity+dt*4);
+    if(shoot.position.x<-70){ shoot.visible=false; shoot.material.opacity=0; } }
 
   // a shy little "hey, poke me" wiggle if ignored for a while
   if(!REDUCED && !grabbed && simT-lastTouch>13){ lastTouch=simT-13+5+Math.random()*6;
