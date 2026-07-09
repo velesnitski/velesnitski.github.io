@@ -28,7 +28,7 @@
     a wobbly rocket · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v5</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v6</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -74,22 +74,22 @@ let faceState='', faceBlink=false;
 function drawFace(state){
   const x=faceCx; x.setTransform(1,0,0,1,0,0);
   x.fillStyle='#0e1a2a'; x.fillRect(0,0,128,128);
-  if(state==='dizzy'){ x.translate(64,78); x.rotate(.12); x.translate(-64,-78); }
-  x.fillStyle=MINT; x.beginPath(); x.arc(64,78,42,0,7); x.fill();                       // head
-  x.fillStyle='rgba(238,110,140,.6)'; x.beginPath(); x.ellipse(74,86,10,7,0,0,7); x.fill();  // blush
+  if(state==='dizzy'){ x.translate(64,64); x.rotate(.12); x.translate(-64,-64); }
+  x.fillStyle=MINT; x.beginPath(); x.arc(64,74,50,0,7); x.fill();                       // head fills the window
+  x.fillStyle='rgba(238,110,140,.6)'; x.beginPath(); x.ellipse(76,74,10,7,0,0,7); x.fill();  // blush
   x.strokeStyle=OUT; x.lineWidth=4; x.lineCap='round';
   if(state==='dizzy'){                                                                   // spiral eye + wavy maw
-    for(let r=9;r>2;r-=3){ x.beginPath(); x.arc(48,64,r,r*.9,r*.9+4.6); x.stroke(); }
-    x.beginPath(); x.moveTo(30,92); x.quadraticCurveTo(38,86,46,92); x.quadraticCurveTo(54,98,62,92); x.stroke();
+    for(let r=9;r>2;r-=3){ x.beginPath(); x.arc(48,56,r,r*.9,r*.9+4.6); x.stroke(); }
+    x.beginPath(); x.moveTo(30,82); x.quadraticCurveTo(38,76,46,82); x.quadraticCurveTo(54,88,62,82); x.stroke();
   }else if(state==='wheee'){                                                             // ^ eye + open maw
-    x.beginPath(); x.arc(48,68,9, Math.PI*1.12, Math.PI*1.88); x.stroke();
-    x.fillStyle='#182226'; x.beginPath(); x.ellipse(44,92,11,12,0,0,7); x.fill();
-    x.fillStyle='#ee6e8c'; x.beginPath(); x.ellipse(44,98,6,5,0,0,7); x.fill();
+    x.beginPath(); x.arc(48,58,9, Math.PI*1.12, Math.PI*1.88); x.stroke();
+    x.fillStyle='#182226'; x.beginPath(); x.ellipse(44,80,11,12,0,0,7); x.fill();
+    x.fillStyle='#ee6e8c'; x.beginPath(); x.ellipse(44,86,6,5,0,0,7); x.fill();
   }else{
-    if(faceBlink){ x.beginPath(); x.moveTo(40,64); x.lineTo(56,66); x.stroke(); }
-    else{ x.fillStyle='#182226'; x.beginPath(); x.ellipse(48,64,9,11,0,0,7); x.fill();
-          x.fillStyle='#fff'; x.beginPath(); x.arc(44,59,4,0,7); x.fill(); }
-    x.beginPath(); x.arc(40,88,12,.4,2.4); x.stroke();
+    if(faceBlink){ x.beginPath(); x.moveTo(40,56); x.lineTo(56,58); x.stroke(); }
+    else{ x.fillStyle='#182226'; x.beginPath(); x.ellipse(48,56,9,11,0,0,7); x.fill();
+          x.fillStyle='#fff'; x.beginPath(); x.arc(44,51,4,0,7); x.fill(); }
+    x.beginPath(); x.arc(40,78,12,.4,2.4); x.stroke();
   }
   faceTex.needsUpdate=true;
 }
@@ -111,14 +111,17 @@ const finGrps=[];
     [1.45,2.7],[.95,3.6],[.5,4.2],[.01,4.5]],SPACE_BLUE,55));
   squash.add(noseGrp);
   // bobble antenna — nested in the nose so its wobble compounds with the nose's
-  const stem=P(new THREE.CylinderGeometry(.11,.17,2.2,10),'#c9d2df',60); stem.position.y=1.1; antGrp.add(stem);
+  const stem=P(new THREE.CylinderGeometry(.15,.22,2.2,10),'#c9d2df',60); stem.position.y=1.1; antGrp.add(stem);
   const bob=P(new THREE.SphereGeometry(.6,16,16),'#ffd54a',90); bob.position.y=2.4; antGrp.add(bob);
   noseGrp.add(antGrp);
-  // swoosh fins — beveled extrusions of a curved profile, like the emoji's swept fins
+  // swept fins ROOTED in the hull — long attachment chord buried inside the body, no floating gap
   const finShape=new THREE.Shape();
-  finShape.moveTo(0,.4); finShape.quadraticCurveTo(3.1,-2.2,4.3,-6.4);
-  finShape.quadraticCurveTo(4.5,-7.5,3.5,-7.2); finShape.quadraticCurveTo(1.3,-6.1,-.05,-5.4);
-  finShape.lineTo(0,.4);
+  finShape.moveTo(-.9,.8);                                 // root edge starts inside the hull
+  finShape.quadraticCurveTo(2.6,-1.4, 4.1,-5.2);           // swept leading edge
+  finShape.quadraticCurveTo(4.55,-6.4, 4.35,-7.3);         // outer edge
+  finShape.quadraticCurveTo(3.2,-7.7, 2.5,-7.1);           // flat-ish bottom tip (boot mounts here)
+  finShape.quadraticCurveTo(.6,-5.6, -.9,-4.6);            // trailing edge back into the hull
+  finShape.lineTo(-.9,.8);
   const finGeo=new THREE.ExtrudeGeometry(finShape,{depth:.9,bevelEnabled:true,
     bevelThickness:.3,bevelSize:.3,bevelSegments:3,curveSegments:14});
   finGeo.translate(0,0,-.45);
@@ -129,23 +132,40 @@ const finGrps=[];
     finGeo.computeVertexNormals(); }
   // 4 fins at 90°, offset 45° from the camera — always two clean symmetric profiles, none flat-on
   for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2, g=new THREE.Group();
-    g.position.set(Math.cos(a)*3.15,-2.2,Math.sin(a)*3.15); g.rotation.y=-a; g.userData.a=a;
+    g.position.set(Math.cos(a)*2.85,-2.2,Math.sin(a)*2.85); g.rotation.y=-a; g.userData.a=a;
     const fin=P(finGeo,SPACE_BLUE,45); fin.rotation.y=-Math.PI/2; g.add(fin);
+    // landing booties — gold pads on the fin tips (it lands on its feet, like any good toy)
+    const boot=P(new THREE.SphereGeometry(.85,14,12),'#ffd54a',70);
+    boot.scale.y=.62; boot.position.set(0,-7.5,3.3); g.add(boot);
     finGrps.push(g); squash.add(g); }
-  // flared engine bell, gunmetal
+  // flared engine bell, gunmetal, double-sided so the inside reads as metal, with a dark throat
   const nozzle=lathe([[.9,0],[1.75,-.2],[2.05,-.95],[2.5,-1.9],[2.8,-2.55],[2.55,-2.75]],'#3f4756',40);
-  nozzle.position.y=-8.2; squash.add(nozzle);
+  nozzle.material.side=THREE.DoubleSide; nozzle.position.y=-8.2; squash.add(nozzle);
+  const throat=new THREE.Mesh(new THREE.CircleGeometry(2.2,24),
+    new THREE.MeshBasicMaterial({color:'#10151f'}));
+  throat.rotation.x=Math.PI/2; throat.position.y=-10.1; squash.add(throat);
   const engLight=new THREE.PointLight('#ffb066', 0, 30); engLight.position.y=-12; squash.add(engLight);
   window.engLight=engLight;
-  const port=new THREE.Mesh(new THREE.CircleGeometry(1.9,32), new THREE.MeshBasicMaterial({map:faceTex}));
-  port.position.set(0,2.6,3.66); squash.add(port);
-  const rim=P(new THREE.TorusGeometry(1.95,.34,12,32),'#ffd54a',80); rim.position.copy(port.position); squash.add(rim);
+  // recessed porthole: dark sleeve into the hull, face set back inside, rim flush with bolts
+  const sleeve=P(new THREE.CylinderGeometry(1.8,1.8,1.2,28,1,true),'#141d2c',15);
+  sleeve.material.side=THREE.DoubleSide;
+  sleeve.rotation.x=Math.PI/2; sleeve.position.set(0,2.6,2.9); squash.add(sleeve);
+  const port=new THREE.Mesh(new THREE.CircleGeometry(1.78,32), new THREE.MeshBasicMaterial({map:faceTex}));
+  port.position.set(0,2.6,3.54); port.rotation.x=-.09; squash.add(port);
+  const rim=P(new THREE.TorusGeometry(1.95,.26,12,36),'#ffd54a',80);
+  rim.position.set(0,2.6,3.62); rim.rotation.x=-.09; squash.add(rim);   // tilted to the hull's slope
+  for(let i=0;i<4;i++){ const b=P(new THREE.SphereGeometry(.15,10,10),'#ffd54a',90);
+    const a=Math.PI/4+i*Math.PI/2;
+    b.position.set(Math.cos(a)*2.28, 2.6+Math.sin(a)*2.28, 3.58); squash.add(b); }
   const berryTex=canvasTex(x=>{ x.clearRect(0,0,128,128); x.font='90px system-ui'; x.textAlign='center'; x.fillText('🍓',64,96); });
   const decal=new THREE.Mesh(new THREE.PlaneGeometry(3.4,3.4), new THREE.MeshBasicMaterial({map:berryTex,transparent:true}));
   decal.position.set(0,-2.8,3.78); squash.add(decal);
   // gold trim ring around the belly — every good retro rocket has one
   const ring=P(new THREE.TorusGeometry(3.46,.16,12,48),'#ffd54a',85);
   ring.rotation.x=Math.PI/2; ring.position.y=-4.6; squash.add(ring);
+  // collar band over the nose joint — the seam becomes an intentional staging line
+  const collar=P(new THREE.TorusGeometry(2.6,.2,12,40),'#ffd54a',85);
+  collar.rotation.x=Math.PI/2; collar.position.y=6.42; squash.add(collar);
   // a band-aid: this rocket gets flung into walls for a living
   const bandTex=canvasTex(x=>{ x.clearRect(0,0,128,128); x.translate(64,64); x.rotate(.55);
     const rr=(a,b,w,h,r)=>{ x.beginPath(); x.moveTo(a+r,b); x.arcTo(a+w,b,a+w,b+h,r);
@@ -154,10 +174,11 @@ const finGrps=[];
     x.fillStyle='#d9b489'; rr(-15,-11,30,22,7);
     x.fillStyle='rgba(120,90,55,.5)';
     for(let i=0;i<6;i++){ x.beginPath(); x.arc(-8+(i%3)*8,-4+((i/3)|0)*8,1.3,0,7); x.fill(); } });
-  const band=new THREE.Mesh(new THREE.PlaneGeometry(2.7,2.7),
+  // band-aid on the nose — a scraped nose, clearly readable from the front
+  const band=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.2),
     new THREE.MeshBasicMaterial({map:bandTex,transparent:true}));
-  band.position.set(Math.sin(-.5)*3.36, 4.1, Math.cos(-.5)*3.36);
-  band.lookAt(band.position.clone().multiplyScalar(3)); squash.add(band);
+  band.position.set(Math.sin(.4)*2.32, .5, Math.cos(.4)*2.32);
+  band.rotation.y=.4; band.rotateX(-.18); noseGrp.add(band);
 }
 setFace('normal');
 // fat invisible hit capsule — generous target for little fingers
