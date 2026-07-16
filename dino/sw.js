@@ -1,7 +1,7 @@
 // Strawberry Dash service worker — NETWORK-FIRST so updates always win
 // (a cache-first SW would recreate the stale-version bug of ADR 0043).
 // Bump CACHE on every release alongside the footer version stamp.
-const CACHE = 'dash-v56';
+const CACHE = 'dash-v57';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE)
