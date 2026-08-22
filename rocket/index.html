@@ -15,6 +15,11 @@
   #more{position:fixed;right:18px;bottom:13px;z-index:6;color:#66788c;font-weight:800;font-size:15px;
         cursor:pointer;user-select:none;text-decoration:underline}
   #more:hover{color:#9fb4c9}
+  #tilt{position:fixed;left:16px;bottom:11px;z-index:6;font-size:20px;cursor:pointer;user-select:none;
+        opacity:.35;filter:grayscale(1);display:none;transition:opacity .3s,filter .3s}
+  #tilt.avail{display:block;animation:tiltpulse 2.4s ease-in-out 3}
+  #tilt.on{opacity:1;filter:none}
+  @keyframes tiltpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.25)}}
   #pop{position:fixed;right:16px;bottom:44px;z-index:6;background:rgba(14,22,36,.94);border:1px solid #24344a;
        border-radius:14px;padding:14px 18px;font-size:13px;line-height:1.9;display:none;box-shadow:0 10px 40px rgba(0,0,0,.5)}
   #pop.show{display:block}
@@ -24,11 +29,12 @@
 <body>
   <canvas id="c"></canvas>
   <div id="more">???</div>
+  <div id="tilt" title="tilt mode">🧭</div>
   <div id="pop">
     <b>rocket jump</b> · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v14</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v15</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -324,6 +330,7 @@ const squeak=()=>tone('sine',520,940,.09,.10);
 const boing =v=>tone('triangle',300,130,.20,Math.min(.14,.03+v*.004));
 const whoosh=v=>tone('sawtooth',90,40,.25,Math.min(.08,.02+v*.002));
 const wheee =()=>tone('sine',480,1250,.5,.06);
+const vibe=ms=>{ try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
 
 /* ══ PHYSICS — a bouncy rigid body on springs ══ */
 const pos=new THREE.Vector3(), vel=new THREE.Vector3(), prevVel=new THREE.Vector3();
@@ -348,7 +355,7 @@ for(let i=0;i<4;i++){ const m=new THREE.Mesh(new THREE.TorusGeometry(1,.32,10,24
 function smokeRing(){ const R=rings[ringI++%4]; R.t=0; R.m.visible=true;
   R.m.position.copy(root.localToWorld(new THREE.Vector3(0,-11.5,0)));
   R.m.quaternion.copy(quat); R.m.rotateX(Math.PI/2); }
-function bounce(axis,v){ boing(Math.abs(v)); sqVel+=Math.min(3,Math.abs(v)*.12); kickJiggle(Math.abs(v)*.5);
+function bounce(axis,v){ boing(Math.abs(v)); vibe(Math.min(40,6+Math.abs(v)*1.5|0)); sqVel+=Math.min(3,Math.abs(v)*.12); kickJiggle(Math.abs(v)*.5);
   if(Math.abs(v)>14){ smokeRing(); fxBurst(pos); }
   angVel.z+=(axis==='x'? -Math.sign(v)*Math.abs(vel.y):Math.sign(vel.x))*.03; }
 
@@ -367,8 +374,9 @@ function step(dt){
     angVel.addScaledVector(r.clone().cross(F), dt/I_ROT*9);
   }else{
     // lazy spring home (underdamped = bouncy return) + gentle idle bob
-    vel.x+=(-pos.x*6 - vel.x*1.4)*dt;
-    vel.y+=((idleBobY-pos.y)*6 - vel.y*1.4)*dt;
+    tiltX+=(tgtTX-tiltX)*.06; tiltY+=(tgtTY-tiltY)*.06;    // smooth the sensor targets
+    vel.x+=((tiltX-pos.x)*6 - vel.x*1.4)*dt;
+    vel.y+=((idleBobY+tiltY-pos.y)*6 - vel.y*1.4)*dt;
     vel.z+=(-pos.z*8 - vel.z*2.2)*dt;
   }
   // upright spring (axis-angle back to identity), always on but soft while held
@@ -456,7 +464,7 @@ canvas.addEventListener('pointerdown',e=>{
   const dir=tmpV.copy(pos).sub(hitP.point).normalize();
   vel.addScaledVector(dir,7); vel.y+=2;
   angVel.addScaledVector(tmpV2.copy(hitP.point).sub(pos).cross(dir), -0.18);
-  sqVel+=1.6; kickJiggle(5); squeak(); pokes++;
+  sqVel+=1.6; kickJiggle(5); squeak(); vibe(10); pokes++;
   grabbed=true; grabLocal.copy(root.worldToLocal(hitP.point.clone()));
   dragPlane.setFromNormalAndCoplanarPoint(cam.getWorldDirection(new THREE.Vector3()).negate(), hitP.point);
   dragTarget.copy(hitP.point); downAt=performance.now(); downPos.copy(hitP.point);
@@ -474,11 +482,57 @@ function release(){
   if(a && b && b.t-a.t>16){
     const fv=b.p.clone().sub(a.p).multiplyScalar(1000/(b.t-a.t));
     if(fv.length()>4){ if(fv.length()>80) fv.setLength(80);
-      vel.copy(fv); whoosh(fv.length()); if(fv.length()>40) wheee(); } }
+      vel.copy(fv); whoosh(fv.length()); vibe(15); if(fv.length()>40) wheee(); } }
   lastTouch=simT;
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',release);
+
+/* ── SENSORS — tilt steers the home point (marble-in-a-tray), shake rattles the toy ── */
+let tiltOn=false, tiltX=0, tiltY=0, tgtTX=0, tgtTY=0, baseBeta=null, baseGamma=null, shakeCd=0;
+const tiltBtn=document.getElementById('tilt');
+const COARSE=matchMedia('(pointer: coarse)').matches;
+if(COARSE && 'DeviceOrientationEvent' in window) tiltBtn.classList.add('avail');
+function tiltCalibrate(){ baseBeta=null; baseGamma=null; }
+function onOrient(e){
+  if(!tiltOn || e.beta==null || e.gamma==null) return;
+  let b=e.beta, g=e.gamma;
+  const ang=(screen.orientation && screen.orientation.angle)||0;    // landscape remap
+  if(ang===90){ const t=b; b=-g; g=t; } else if(ang===-90||ang===270){ const t=b; b=g; g=-t; }
+  if(baseBeta==null){ baseBeta=b; baseGamma=g; return; }            // first sample = neutral grip
+  const db=Math.max(-28,Math.min(28,b-baseBeta)), dg=Math.max(-28,Math.min(28,g-baseGamma));
+  tgtTX=(dg/28)*(wallX-8); tgtTY=-(db/28)*(wallTop-8);
+}
+function onMotion(e){
+  if(!tiltOn || !e.acceleration) return;
+  shakeCd=Math.max(0,shakeCd-1);
+  const a=e.acceleration, m=Math.sqrt((a.x||0)**2+(a.y||0)**2+(a.z||0)**2);
+  if(m>13 && shakeCd<=0){ shakeCd=10;                               // toy-in-a-box: jerk the box, the toy flies opposite
+    vel.x+=Math.max(-30,Math.min(30,-(a.x||0)*2.2));
+    vel.y+=Math.max(-30,Math.min(30, (a.y||0)*2.2));
+    kickJiggle(4); vibe(20); }
+}
+async function tiltEnable(){
+  try{
+    if(typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission();      // iOS 13+: must run in a tap
+      if(r!=='granted') return;
+      if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
+        try{ await DeviceMotionEvent.requestPermission(); }catch(err){} } }
+    tiltOn=true; tiltCalibrate(); tiltBtn.classList.add('on');
+    try{ localStorage.setItem('rocketTilt','1'); }catch(err){}
+  }catch(err){}
+}
+function tiltDisable(){ tiltOn=false; tgtTX=0; tgtTY=0; tiltBtn.classList.remove('on');
+  try{ localStorage.setItem('rocketTilt','0'); }catch(err){} }
+tiltBtn.addEventListener('click',()=>{ tiltOn? tiltDisable() : tiltEnable(); });
+addEventListener('deviceorientation', onOrient, {passive:true});
+addEventListener('devicemotion', onMotion, {passive:true});
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) tiltCalibrate(); });   // re-grip on return
+// Android needs no permission — auto-on unless the user turned it off before
+try{ if(COARSE && localStorage.getItem('rocketTilt')!=='0' &&
+     !(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function')){
+  tiltOn=true; tiltCalibrate(); tiltBtn.classList.add('on'); } }catch(err){}
 
 /* ??? */
 const pop=document.getElementById('pop');
