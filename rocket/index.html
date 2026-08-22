@@ -28,7 +28,7 @@
     <b>rocket jump</b> · poke it, fling it, spin it<br>
     it delivers strawberries to <a href="../dino/">🍓 Strawberry Dash</a><br>
     the little planet is lit by real players<br>
-    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v13</span>
+    <span style="color:#5a6a7c">by velesnitski · three.js · rocket v14</span>
   </div>
 
 <script src="three.min.js"></script>
@@ -134,7 +134,9 @@ const finGrps=[];
     finGeo.computeVertexNormals(); }
   // 4 fins at 90°, offset 45° from the camera — always two clean symmetric profiles, none flat-on
   for(let i=0;i<4;i++){ const a=Math.PI/4+i*Math.PI/2, g=new THREE.Group();
-    g.position.set(Math.cos(a)*3.0,-4.6,Math.sin(a)*3.0); g.rotation.y=-a; g.userData.a=a;
+    g.position.set(Math.cos(a)*3.0,-4.6,Math.sin(a)*3.0);
+    g.rotation.y=Math.PI/2-a;   // sweep → RADIAL (rotation.y=-a aimed it tangentially — the 'завалены' bug since v5)
+    g.userData.a=a;
     const fin=P(finGeo,SPACE_BLUE,45); fin.rotation.y=-Math.PI/2; g.add(fin);
     // landing booties — gold pads on the fin tips (it lands on its feet, like any good toy)
     const boot=P(new THREE.SphereGeometry(.75,14,12),'#ffd54a',70);
@@ -400,7 +402,7 @@ function step(dt){
   jig.forEach(j=>{
     let ax=la.x, az=la.z;
     if(j.g.userData.a!==undefined){ const a=j.g.userData.a, c=Math.cos(a), sn=Math.sin(a);
-      ax=c*la.x+sn*la.z; az=-sn*la.x+c*la.z; }
+      ax=sn*la.x-c*la.z; az=c*la.x+sn*la.z; }   // frame follows the corrected π/2−a mount
     j.vx+=(-140*j.rx-6*j.vx+az*j.k)*dt; j.vz+=(-140*j.rz-6*j.vz-ax*j.k)*dt;
     j.rx=Math.max(-.55,Math.min(.55,j.rx+j.vx*dt)); j.rz=Math.max(-.55,Math.min(.55,j.rz+j.vz*dt));
     j.g.rotation.x=j.rx; j.g.rotation.z=j.rz;
