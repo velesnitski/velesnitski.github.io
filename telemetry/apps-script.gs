@@ -100,29 +100,39 @@ function buildDashboard(){
   d.setFrozenRows(2);
 }
 
-/** Emails you a daily summary at ~09:00. Run setupDigest() ONCE to install the trigger. */
+/** Emails a WEEKLY summary on Mondays ~09:00 (covers the previous 7 days).
+ *  Run setupDigest() ONCE to (re)install the trigger — it removes the old daily one.
+ *  Triggers execute the SAVED code: paste + Save is enough, no redeploy. */
 function setupDigest(){
-  ScriptApp.getProjectTriggers().forEach(t=>{ if(t.getHandlerFunction()==='dailyDigest') ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('dailyDigest').timeBased().everyDays(1).atHour(9).create();
+  ScriptApp.getProjectTriggers().forEach(t=>{ const f=t.getHandlerFunction();
+    if(f==='dailyDigest'||f==='weeklyDigest') ScriptApp.deleteTrigger(t); });
+  ScriptApp.newTrigger('weeklyDigest').timeBased().onWeekDay(ScriptApp.WeekDay.MONDAY).atHour(9).create();
 }
-function dailyDigest(){
+function weeklyDigest(){
   const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TAB);
   if(!sh || sh.getLastRow()<2) return;
   const rows = sh.getRange(2,1,sh.getLastRow()-1,14).getValues();
-  const y = new Date(Date.now()-86400000).toDateString();
-  const t = rows.filter(r=>r[0] && new Date(r[0]).toDateString()===y);
-  if(!t.length) return;                                                 // quiet day, no mail
-  const overs = t.filter(r=>r[1]==='over');
+  const to = Date.now(), from = to - 7*86400000;
+  const t = rows.filter(r=>{ const ts=r[0] && new Date(r[0]).getTime(); return ts && ts>=from && ts<to; });
+  if(!t.length) return;                                                 // fully silent week — no mail
+  const overs   = t.filter(r=>r[1]==='over');
+  const rockets = t.filter(r=>String(r[1]).indexOf('rocket')===0);
+  const loads   = t.filter(r=>r[1]==='load');
+  const players = new Set(t.map(r=>String(r[3]))).size;
   const best = overs.reduce((m,r)=>Math.max(m,r[4]|0),0);
-  const bestBy = (overs.find(r=>(r[4]|0)===best)||[])[12]||'?';
+  const bestBy = (overs.find(r=>(r[4]|0)===best)||[])[12]||'';
   const causes = {}; overs.forEach(r=>{ if(r[13]) causes[r[13]]=(causes[r[13]]||0)+1; });
   const topCause = Object.entries(causes).sort((a,b)=>b[1]-a[1])[0];
+  const range = new Date(from).toDateString()+' — '+new Date(to-1).toDateString();
+  const bestLine = overs.length ? 'best: '+best+(bestBy? ' by '+bestBy:'') : 'no completed runs this week';
   MailApp.sendEmail(Session.getEffectiveUser().getEmail(),
-    '🦕 Dash daily: '+new Set(t.map(r=>String(r[3]))).size+' players, best '+best,
-    'Strawberry Dash — '+y+'\n'+
-    'players: '+new Set(t.map(r=>String(r[3]))).size+'\n'+
-    'runs: '+overs.length+'\npings: '+t.length+'\n'+
-    'best: '+best+' by '+bestBy+'\n'+
-    (topCause? 'deadliest: '+topCause[0]+' ('+topCause[1]+'×)\n':'')+
-    'shares: '+t.filter(r=>r[1]==='share').length+' · buys: '+t.filter(r=>r[1]==='buy').length);
+    '🦕 Dash weekly: '+players+' devices, '+overs.length+' runs'+(overs.length? ', best '+best:''),
+    'Strawberry Dash — week '+range+'\n'+
+    'devices: '+players+' · pings: '+t.length+'\n'+
+    'runs: '+overs.length+' · dino opens: '+loads.length+' · rocket visits: '+rockets.length+'\n'+
+    bestLine+'\n'+
+    (topCause? 'deadliest: '+topCause[0]+' ('+topCause[1]+'\u00d7)\n':'')+
+    'shares: '+t.filter(r=>r[1]==='share').length+
+    ' · buys: '+t.filter(r=>r[1]==='buy').length+
+    ' · revives: '+t.filter(r=>r[1]==='revive').length);
 }
