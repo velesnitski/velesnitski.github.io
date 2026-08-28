@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🐟 fish.</title>
+<meta name="description" content="fish. they swim.">
+<meta name="theme-color" content="#0a2733">
+<link rel="shortcut icon" type="image/x-icon" href="../favicons/favicon.ico">
+<style>
+  *{margin:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;font-family:system-ui,-apple-system,sans-serif;color:#eaf6f4;
+    background:linear-gradient(#134a5c 0%, #0d3949 34%, #0a2733 72%, #082028 100%)}
+  canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .card{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;z-index:3;
+    background:rgba(10,39,51,.38);border:1px solid rgba(180,230,220,.16);border-radius:20px;
+    padding:26px 40px;backdrop-filter:blur(3px);pointer-events:none}
+  .card h1{font-size:clamp(38px,9vw,64px);font-weight:900;letter-spacing:-.02em}
+  .card p{margin-top:6px;font-size:15px;color:#a9cfc9}
+  .card .mem{margin-top:12px;font-size:12px;color:#6f978f}
+  #more{position:fixed;right:18px;bottom:13px;z-index:6;color:#5f8a83;font-weight:800;font-size:15px;
+        cursor:pointer;user-select:none;text-decoration:underline}
+  #more:hover{color:#9fc9c0}
+  #pop{position:fixed;right:16px;bottom:44px;z-index:6;background:rgba(8,30,38,.95);border:1px solid #1d4a50;
+       border-radius:14px;padding:14px 18px;font-size:13px;line-height:1.9;display:none;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  #pop.show{display:block}
+  #pop a{color:#8fd4c4}
+  @media (prefers-reduced-motion: reduce){ .card{backdrop-filter:none} }
+</style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div class="card" data-fish-obstacle>
+    <h1>fish.</h1>
+    <p>they swim. tap — feed them.</p>
+    <p class="mem" id="mem"></p>
+  </div>
+  <div id="more">???</div>
+  <div id="pop">
+    <b>fish.</b> · an aquarium, nothing more<br>
+    the dino runs at <a href="../dino/">🍓 Strawberry Dash</a><br>
+    the rocket wobbles at <a href="../rocket/">🚀 rocket jump</a><br>
+    <span style="color:#557a73">by velesnitski · canvas · fish v1</span>
+  </div>
+<script>
+addEventListener('error',e=>{ document.title='ERR: '+e.message; });
+const TELEMETRY_EP='https://script.google.com/macros/s/AKfycbyA-zpBfGubbXMPGJNe5_nRhcAWUt19uE_nln2oCbH4XGjnwkT6qjC1cNEWrlpQXnqf/exec';
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const TAU=Math.PI*2, OUTLINE='#26383f';
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let W=innerWidth, H=innerHeight, DPR=Math.min(2,devicePixelRatio||1);
+function resize(){ W=innerWidth; H=innerHeight; cv.width=W*DPR; cv.height=H*DPR; collectObstacles(); }
+addEventListener('resize',resize);
+
+/* ── the page content is the rockwork: fish steer around real DOM boxes (the shuka trick) ── */
+let obstacles=[];
+function collectObstacles(){
+  obstacles=Array.from(document.querySelectorAll('[data-fish-obstacle], #pop.show'))
+    .map(el=>el.getBoundingClientRect()).filter(r=>r.width>0&&r.height>0)
+    .map(r=>({x:r.left-18,y:r.top-18,w:r.width+36,h:r.height+36}));
+}
+setInterval(collectObstacles,2000);
+
+/* ── memory: feeding & visits live in localStorage ── */
+const LSg=(k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:v; }catch(e){ return d; } };
+const LSs=(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} };
+let fed=+LSg('fishFed',0);
+const lastVisit=+LSg('fishSeen',0), now=Date.now();
+LSs('fishSeen',now);
+const mem=document.getElementById('mem');
+function memLine(){
+  const days=lastVisit? (now-lastVisit)/86400000 : 0;
+  let s = fed>0 ? 'fed '+fed+' time'+(fed===1?'':'s')+'.' : '';
+  if(lastVisit && days>=3) s+=' the fish missed you. dramatically.';
+  else if(lastVisit) s+=' the fish remember you.';
+  mem.textContent=s;
+}
+memLine();
+
+/* ── kawaii fish, drawn in the site's own grammar ── */
+const PALETTE=[
+  {b:'#7fd6b0',t:'#5cb894'},{b:'#7fb7e8',t:'#5b95cc'},{b:'#ffd54a',t:'#e0b02e'},
+  {b:'#ff9ecf',t:'#e578b0'},{b:'#e5384e',t:'#c02439',berry:true}   // one strawberry fish, seeds and all
+];
+const NF=REDUCED?10:16, fish=[];
+for(let i=0;i<NF;i++){ const p=PALETTE[i%PALETTE.length];
+  fish.push({ x:Math.random()*W, y:Math.random()*H, a:Math.random()*TAU, sp:.6+Math.random()*.8,
+    size:.7+Math.random()*.7, ph:Math.random()*TAU, pal:p, chomp:0, blink:0 }); }
+
+const crumbs=[], bubbles=[];
+let mx=-999, my=-999, mvx=0, lastMx=-999;
+addEventListener('pointermove',e=>{ mvx=Math.abs(e.clientX-lastMx); lastMx=e.clientX; mx=e.clientX; my=e.clientY; },{passive:true});
+addEventListener('pointerdown',e=>{
+  crumbs.push({x:e.clientX+(Math.random()-.5)*10, y:e.clientY, vy:.25, sway:Math.random()*TAU});
+  if(crumbs.length>12) crumbs.shift();
+  fed++; LSs('fishFed',fed); memLine();
+},{passive:true});
+
+function steerAway(f,rx,ry,rw,rh,k){          // push heading away from a rect if we are inside its halo
+  if(f.x>rx&&f.x<rx+rw&&f.y>ry&&f.y<ry+rh){
+    const cx=rx+rw/2, cy=ry+rh/2, ang=Math.atan2(f.y-cy,f.x-cx);
+    let d=ang-f.a; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU;
+    f.a+=d*k; return true; } return false;
+}
+
+let t=0;
+function stepFish(f,dt){
+  f.ph+=dt*3; f.chomp=Math.max(0,f.chomp-dt*3);
+  if(f.blink>0) f.blink-=dt; else if(Math.random()<.003) f.blink=.12;
+  // wander
+  f.a+=(Math.random()-.5)*.05;
+  // crumbs are irresistible
+  let target=null, best=1e9;
+  crumbs.forEach(c=>{ const d=(c.x-f.x)**2+(c.y-f.y)**2; if(d<best){ best=d; target=c; } });
+  if(target && best<400*400){
+    const ang=Math.atan2(target.y-f.y, target.x-f.x);
+    let d=ang-f.a; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU;
+    f.a+=d*.06;
+    if(best<16*16){ target.eaten=true; f.chomp=1;
+      for(let k=0;k<4;k++) bubbles.push({x:f.x,y:f.y-6,r:1.5+Math.random()*2,vy:.5+Math.random()*.5,wob:Math.random()*TAU}); }
+  }else{
+    // cursor: a fast pointer scares, a calm one intrigues
+    const dm=(mx-f.x)**2+(my-f.y)**2;
+    if(dm<130*130){
+      const ang=Math.atan2(my-f.y, mx-f.x);
+      let d=ang-f.a; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU;
+      f.a+= (mvx>18? -d*.08 : d*.015);
+    }
+  }
+  // separation
+  fish.forEach(o=>{ if(o===f) return; const d2=(o.x-f.x)**2+(o.y-f.y)**2;
+    if(d2<42*42 && d2>0){ const ang=Math.atan2(f.y-o.y, f.x-o.x);
+      let d=ang-f.a; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU; f.a+=d*.02; } });
+  // содержимое страницы — камни
+  obstacles.forEach(o=>steerAway(f,o.x,o.y,o.w,o.h,.09));
+  // edges
+  const m=36;
+  if(f.x<m||f.x>W-m||f.y<m||f.y>H-m){
+    const ang=Math.atan2(H/2-f.y, W/2-f.x);
+    let d=ang-f.a; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU; f.a+=d*.045; }
+  const v=(REDUCED?.5:1)*f.sp*(target&&best<300*300?2.1:1)*60*dt;
+  f.x+=Math.cos(f.a)*v; f.y+=Math.sin(f.a)*v*.6;
+}
+
+function drawFish(f){
+  const dir=Math.cos(f.a)>=0?1:-1;
+  const pitch=Math.max(-.35,Math.min(.35, Math.sin(f.a)*.6*dir));
+  const s=f.size, wig=Math.sin(f.ph)*1;
+  ctx.save(); ctx.translate(f.x,f.y); ctx.scale(dir,1); ctx.rotate(pitch);
+  ctx.scale(s,s); ctx.lineJoin='round';
+  // tail (wiggles)
+  ctx.save(); ctx.translate(-16,0); ctx.rotate(Math.sin(f.ph)*.5);
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-13,-8+wig); ctx.lineTo(-10,0); ctx.lineTo(-13,8+wig); ctx.closePath();
+  ctx.fillStyle=f.pal.t; ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.5; ctx.fill(); ctx.stroke(); ctx.restore();
+  // body
+  ctx.beginPath(); ctx.ellipse(0,0,17,10,0,0,TAU);
+  ctx.fillStyle=f.pal.b; ctx.strokeStyle=OUTLINE; ctx.lineWidth=2.5; ctx.fill(); ctx.stroke();
+  if(f.pal.berry){ ctx.fillStyle='#ffe08a';                    // strawberry seeds
+    [[-6,-4],[2,-6],[8,-1],[-2,2],[6,5],[-8,3]].forEach(([sx,sy])=>{ ctx.beginPath(); ctx.ellipse(sx,sy,1.2,1.8,.5,0,TAU); ctx.fill(); }); }
+  // top fin
+  ctx.beginPath(); ctx.moveTo(-2,-9); ctx.quadraticCurveTo(3,-16,8,-9);
+  ctx.fillStyle=f.pal.t; ctx.fill(); ctx.stroke();
+  // face
+  if(f.blink>0){ ctx.strokeStyle=OUTLINE; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(6,-3); ctx.lineTo(11,-2.6); ctx.stroke(); }
+  else{ ctx.fillStyle='#182226'; ctx.beginPath(); ctx.ellipse(8.5,-2.5,2.8,3.4,0,0,TAU); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(7.5,-4,1.3,0,TAU); ctx.fill(); }
+  ctx.fillStyle='rgba(238,110,140,.5)'; ctx.beginPath(); ctx.ellipse(11,2.5,2.6,1.8,0,0,TAU); ctx.fill();
+  const mo=f.chomp>0? 2.4 : .9;
+  ctx.strokeStyle=OUTLINE; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(14.5,1.5,mo,.3,TAU-.3); ctx.stroke();
+  ctx.restore();
+}
+
+let last=performance.now();
+function frame(nowMs){
+  const dt=Math.min(.05,(nowMs-last)/1000); last=nowMs; t+=dt;
+  ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,W,H);
+  // light rays
+  if(!REDUCED){ ctx.save(); ctx.globalAlpha=.05;
+    for(let i=0;i<3;i++){ const rx=W*.2+i*W*.3+Math.sin(t*.2+i)*30;
+      ctx.fillStyle='#bfeee0'; ctx.beginPath();
+      ctx.moveTo(rx-30,-10); ctx.lineTo(rx+40,-10); ctx.lineTo(rx+150,H+10); ctx.lineTo(rx+40,H+10); ctx.closePath(); ctx.fill(); }
+    ctx.restore(); }
+  // sand + strawberry coral
+  ctx.fillStyle='rgba(214,190,140,.14)'; ctx.beginPath();
+  ctx.moveTo(0,H); ctx.quadraticCurveTo(W*.3,H-26,W*.6,H-14); ctx.quadraticCurveTo(W*.85,H-6,W,H-18); ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+  for(let i=0;i<4;i++){ const bx=W*(.12+i*.24), by=H-10-((i*37)%14);
+    ctx.font='16px system-ui'; ctx.globalAlpha=.5; ctx.fillText(i%2?'🍓':'🌿',bx,by); ctx.globalAlpha=1; }
+  // crumbs
+  crumbs.forEach(c=>{ if(c.eaten) return; c.sway+=dt*3; c.y+=c.vy*(REDUCED?30:60)*dt; c.x+=Math.sin(c.sway)*.4;
+    if(c.y>H-14) c.y=H-14;
+    ctx.fillStyle='#f0d9a8'; ctx.beginPath(); ctx.arc(c.x,c.y,2.6,0,TAU); ctx.fill();
+    ctx.strokeStyle='rgba(38,56,63,.6)'; ctx.lineWidth=1; ctx.stroke(); });
+  for(let i=crumbs.length-1;i>=0;i--) if(crumbs[i].eaten) crumbs.splice(i,1);
+  // fish
+  fish.forEach(f=>{ stepFish(f,dt); drawFish(f); });
+  // bubbles
+  if(!REDUCED && Math.random()<.05) bubbles.push({x:Math.random()*W,y:H+6,r:2+Math.random()*3,vy:.6+Math.random()*.8,wob:Math.random()*TAU});
+  bubbles.forEach(b=>{ b.y-=b.vy*60*dt; b.x+=Math.sin(b.wob+=dt*2)*.5;
+    ctx.strokeStyle='rgba(200,240,235,.45)'; ctx.lineWidth=1.2;
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,TAU); ctx.stroke(); });
+  for(let i=bubbles.length-1;i>=0;i--) if(bubbles[i].y<-10) bubbles.splice(i,1);
+  requestAnimationFrame(frame);
+}
+
+const pop=document.getElementById('pop');
+document.getElementById('more').addEventListener('click',()=>{ pop.classList.toggle('show'); setTimeout(collectObstacles,50); });
+
+let sid='fish'; try{ sid=localStorage.getItem('dinoSid')||'fish'; }catch(e){}
+try{ navigator.sendBeacon(TELEMETRY_EP, JSON.stringify({ev:'fish', v:56, sid,
+  ua:navigator.userAgent.slice(0,180), lang:navigator.language||'',
+  tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||''), scr:screen.width+'x'+screen.height})); }catch(e){}
+
+resize(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>

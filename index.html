@@ -115,7 +115,7 @@
 
 				<!-- Footer -->
 					<footer id="footer">
-						<span class="copyright">&copy; alexvelesnitski. icons by <a href="https://www.flaticon.com/free-icons/professions-and-jobs" title="flaticon professions and jobs icons">xnimrodx@flaticon</a> <a href="rocket/" title="rocket jump" aria-label="rocket jump" style="text-decoration:none;color:inherit">&middot;</a> <a href="dino/" title="a little something for the kids" aria-label="play a game" style="text-decoration:none;opacity:.45">🦕</a></span>
+						<span class="copyright" id="cpy">&copy; alexvelesnitski. icons by <a href="https://www.flaticon.com/free-icons/professions-and-jobs" title="flaticon professions and jobs icons">xnimrodx@flaticon</a> <a href="rocket/" title="rocket jump" aria-label="rocket jump" style="text-decoration:none;color:inherit">&middot;</a> <a href="dino/" title="a little something for the kids" aria-label="play a game" style="text-decoration:none;opacity:.45">🦕</a></span>
 					</footer>
 
 			</div>
@@ -125,5 +125,11 @@
 			window.ontouchmove = function() { return false; }
 			window.onorientationchange = function() { document.body.scrollTop = 0; }
 		</script>
-	</body>
+	<script>
+/* third egg, behavioral tier (ADR 0069): triple-click the copyright line */
+(function(){var n=0,ts=0,el=document.getElementById('cpy');
+if(el)el.addEventListener('click',function(){var now=Date.now();n=(now-ts<650)?n+1:1;ts=now;
+if(n>=3){n=0;location.href='fish/';}});})();
+</script>
+</body>
 </html>
