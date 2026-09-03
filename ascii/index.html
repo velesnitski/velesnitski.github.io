@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>▚ ascii village.</title>
+<meta name="description" content="a village. made of characters.">
+<meta name="theme-color" content="#0b1220">
+<link rel="shortcut icon" type="image/x-icon" href="../favicons/favicon.ico">
+<style>
+  *{margin:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:#0b1220;color:#cfe6d8;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  canvas#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  #card{position:fixed;left:50%;top:16px;transform:translateX(-50%);z-index:3;text-align:center;
+    background:rgba(6,12,24,.55);border:1px solid rgba(160,220,190,.18);border-radius:12px;
+    padding:8px 18px;pointer-events:none;transition:opacity 1.2s}
+  #card h1{font-size:20px;font-weight:700;letter-spacing:.04em}
+  #card p{font-size:11px;color:#7fa892;margin-top:2px}
+  #card.gone{opacity:0}
+  #more{position:fixed;right:18px;bottom:13px;z-index:6;color:#5c7d6d;font-weight:800;font-size:15px;
+        cursor:pointer;user-select:none;text-decoration:underline}
+  #more:hover{color:#9fd0b8}
+  #pop{position:fixed;right:16px;bottom:44px;z-index:6;background:rgba(6,14,22,.96);border:1px solid #274b3c;
+       border-radius:12px;padding:13px 17px;font-size:12px;line-height:1.9;display:none;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  #pop.show{display:block}
+  #pop a{color:#8fd4b4}
+</style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div id="card"><h1>ascii village.</h1><p>arrows / drag &mdash; walk. talk to the locals.</p></div>
+  <div id="more">???</div>
+  <div id="pop">
+    <b>ascii village.</b> &middot; a village, made of characters<br>
+    the dino runs at <a href="../dino/">🍓 Strawberry Dash</a><br>
+    the rocket wobbles at <a href="../rocket/">🚀 rocket jump</a><br>
+    the fish swim at <a href="../fish/">🐟 fish.</a><br>
+    <span style="color:#4c6a5b">by velesnitski &middot; canvas &middot; ascii v1</span>
+  </div>
+<script>
+addEventListener('error',e=>{ document.title='ERR: '+e.message; });
+const TELEMETRY_EP='https://script.google.com/macros/s/AKfycbyA-zpBfGubbXMPGJNe5_nRhcAWUt19uE_nln2oCbH4XGjnwkT6qjC1cNEWrlpQXnqf/exec';
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ── world: a character strip, composed from stamps ── */
+const WW=150, WH=30, GY=24;                 // world cols/rows, ground row
+const grid=[];                              // [{c:char, k:class}] per row
+for(let y=0;y<WH;y++){ grid.push(Array.from({length:WW},()=> ({c:' ',k:''}))); }
+function put(x,y,c,k){ if(x>=0&&x<WW&&y>=0&&y<WH){ grid[y][x]={c,k}; } }
+function stamp(x,y,lines,k){ lines.forEach((ln,dy)=>{ for(let dx=0;dx<ln.length;dx++){ if(ln[dx]!==' ') put(x+dx,y+dy,ln[dx],k); } }); }
+
+// ground: surface line + speckled dirt
+for(let x=0;x<WW;x++){ put(x,GY,'▔','gnd');
+  for(let y=GY+1;y<WH;y++){ const r=(x*7+y*13)%17; put(x,y, r===0?'.':r===5?',':' ','dirt'); } }
+
+const HOUSE=[
+"   __",
+"  /  \\_____",
+" /         \\",
+"/___________\\",
+"|  __   __  |",
+"| |::| |::| |",
+"|    ___    |",
+"|___|   |___|"];
+const HOUSE2=[
+"    __",
+"   /  \\___",
+"  /       \\",
+" /_________\\",
+" |  __  __ |",
+" | |::||::||",
+" |_________|"];
+const TREE=[
+"  &&&",
+" &&&&&",
+"&&&&&&&",
+" &&&&&",
+"   |",
+"   |"];
+const WELL=[
+" ___ ",
+"/o o\\",
+"|___|"];
+const FENCE=["+--+--+--+"];
+const PATCH=[",o.,o,.o,",".,o.,.o,."];
+
+const smokes=[];                    // chimney mouths
+function house(x,tall){ const s=tall?HOUSE:HOUSE2, h=s.length;
+  stamp(x,GY-h,s,'house'); smokes.push({x:x+(tall?4:5), y:GY-h-1}); }
+house(8,true);  house(30,false);  house(58,true);  house(96,false);  house(118,true);
+stamp(22,GY-TREE.length,TREE,'tree'); stamp(48,GY-TREE.length,TREE,'tree');
+stamp(76,GY-TREE.length,TREE,'tree'); stamp(84,GY-TREE.length,TREE,'tree');
+stamp(110,GY-TREE.length,TREE,'tree'); stamp(136,GY-TREE.length,TREE,'tree');
+stamp(70,GY-WELL.length,WELL,'well');
+stamp(42,GY-1,FENCE,'fence'); stamp(126,GY-1,FENCE,'fence');
+stamp(88,GY-2,PATCH,'patch'); stamp(14,GY-2,PATCH,'patch');
+// windows list for night flicker
+const windows=[]; for(let y=0;y<WH;y++)for(let x=0;x<WW;x++){ if(grid[y][x].c===':') windows.push({x,y,ph:Math.random()*9}); }
+
+/* ── palette by hour ── */
+function palette(){
+  const h=new Date().getHours();
+  const night=(h>=21||h<6), dusk=(h>=18&&h<21)||(h>=6&&h<8);
+  return { night, dusk,
+    sky:   night?'#070d1a': dusk?'#1a1626':'#12233a',
+    star:  '#e8f0ff', cloud: night?'#26344a':'#4a6078',
+    gnd:'#4c6a4c', dirt:'#2c3c34', house:'#c9a06a', win: night?'#ffd76a':'#3a4a5a',
+    tree:'#5fae6f', trunk:'#8a6a48', well:'#9ab0c0', fence:'#7a6a52',
+    patch:'#5fae6f', berry:'#e5546a', player:'#ffffff', npc:'#9fd0b8',
+    smoke:'#8a97a5', speech:'#eaf6ee' };
+}
+
+/* ── player & npcs (foreground street band, rows GY+1..WH-2) ── */
+const P={x:6,y:GY+2};
+const NPCS=[
+  {x:36,y:GY+2,dir:1, say:'nice weather. statistically.'},
+  {x:80,y:GY+3,dir:-1,say:'the fish says hi.'},
+  {x:120,y:GY+2,dir:1,say:'strawberries. again.'}
+];
+let moved=false;
+function step(dx,dy){
+  P.x=Math.max(1,Math.min(WW-2,P.x+dx));
+  P.y=Math.max(GY+1,Math.min(WH-2,P.y+dy));
+  if(!moved){ moved=true; document.getElementById('card').classList.add('gone'); }
+}
+const KEYS={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1],a:[-1,0],d:[1,0],w:[0,-1],s:[0,1]};
+let held=null, rep=0;
+addEventListener('keydown',e=>{ const k=KEYS[e.key]; if(k){ e.preventDefault(); if(held!==e.key){ held=e.key; step(k[0],k[1]); rep=performance.now()+220; } } });
+addEventListener('keyup',e=>{ if(held===e.key) held=null; });
+let drag=null;
+addEventListener('pointerdown',e=>{ drag={x:e.clientX,y:e.clientY}; },{passive:true});
+addEventListener('pointermove',e=>{ if(!drag) return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)>22||Math.abs(dy)>26){
+    step(Math.abs(dx)>Math.abs(dy)?Math.sign(dx):0, Math.abs(dy)>=Math.abs(dx)?Math.sign(dy):0);
+    drag={x:e.clientX,y:e.clientY}; } },{passive:true});
+addEventListener('pointerup',()=>{ drag=null; },{passive:true});
+
+/* ── render ── */
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let W=innerWidth,H=innerHeight,DPR=Math.min(2,devicePixelRatio||1),CH=20,CWc=12;
+function resize(){ W=innerWidth;H=innerHeight; cv.width=W*DPR; cv.height=H*DPR;
+  CH=Math.max(12,Math.min(24,Math.floor(H/(WH+1)))); CWc=Math.round(CH*.62); }
+addEventListener('resize',resize); resize();
+
+const stars=Array.from({length:70},()=>({x:Math.random(),y:Math.random()*.7,ph:Math.random()*9}));
+const clouds=[{x:20,y:4},{x:70,y:7},{x:120,y:3}];
+const parts=[];                                        // smoke
+let t=0,last=performance.now(),camX=0;
+
+function cellColor(cell,pal,x,y){
+  switch(cell.k){
+    case 'gnd': return pal.gnd; case 'dirt': return pal.dirt;
+    case 'house': return cell.c===':' ? pal.win : pal.house;
+    case 'tree': return cell.c==='|' ? pal.trunk : pal.tree;
+    case 'well': return pal.well; case 'fence': return pal.fence;
+    case 'patch': return cell.c==='o' ? pal.berry : pal.patch;
+    default: return '#cfe6d8'; }
+}
+function frame(nowMs){
+  const dt=Math.min(.05,(nowMs-last)/1000); last=nowMs; t+=dt;
+  if(held&&nowMs>rep){ const k=KEYS[held]; if(k){ step(k[0],k[1]); rep=nowMs+120; } }
+  const pal=palette();
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.fillStyle=pal.sky; ctx.fillRect(0,0,W,H);
+  const cols=Math.ceil(W/CWc);
+  camX=Math.max(0,Math.min(WW-cols, Math.round(P.x-cols/2)));
+  ctx.font='bold '+CH*.9+'px ui-monospace,Menlo,monospace'; ctx.textBaseline='top';
+  // sky life
+  if(pal.night){ stars.forEach(s=>{ ctx.globalAlpha=.35+.6*Math.abs(Math.sin(t+s.ph));
+      ctx.fillStyle=pal.star; ctx.fillText(Math.sin(s.ph)>0?'.':'+', s.x*W, s.y*GY*CH*.8); }); ctx.globalAlpha=1; }
+  else{ ctx.fillStyle=pal.cloud; clouds.forEach(c=>{ c.x+=(REDUCED?.05:.25)*dt; if(c.x>WW) c.x=-14;
+      const sx=(c.x-camX)*CWc; ctx.fillText('~~~~~~',sx,c.y*CH); ctx.fillText(' ~~~~',sx,(c.y+1)*CH); }); }
+  // world glyphs
+  for(let y=0;y<WH;y++){ for(let cx=0;cx<=cols;cx++){ const x=camX+cx; if(x>=WW) break;
+    const cell=grid[y][x]; if(cell.c===' ') continue;
+    let ch=cell.c, px=cx*CWc;
+    if(cell.k==='tree'&&ch==='&'&&!REDUCED) px+=Math.sin(t*1.4+x*.5)*1.5;      // sway
+    if(cell.k==='house'&&ch===':'){ const w=windows.find(w=>w.x===x&&w.y===y);
+      ctx.fillStyle = pal.night&&w ? (Math.sin(t*.7+w.ph)>-.85?pal.win:'#3a4a5a') : pal.win; }
+    else ctx.fillStyle=cellColor(cell,pal,x,y);
+    ctx.fillText(ch,px,y*CH); } }
+  // smoke
+  if(!REDUCED&&Math.random()<.12){ const s=smokes[Math.floor(Math.random()*smokes.length)];
+    parts.push({x:s.x,y:s.y,a:1,vx:.3+Math.random()*.4}); }
+  ctx.fillStyle=pal.smoke;
+  parts.forEach(p=>{ p.y-=dt*2.2; p.x+=p.vx*dt; p.a-=dt*.25;
+    ctx.globalAlpha=Math.max(0,p.a); ctx.fillText(p.a>.6?'.':p.a>.3?'o':'°',(p.x-camX)*CWc,p.y*CH); });
+  ctx.globalAlpha=1;
+  for(let i=parts.length-1;i>=0;i--) if(parts[i].a<=0) parts.splice(i,1);
+  // npcs wander the street
+  NPCS.forEach(n=>{ if(!REDUCED&&Math.random()<.01) n.dir=-n.dir;
+    if(!REDUCED&&Math.random()<.06){ const nx=n.x+n.dir*.5; if(nx>2&&nx<WW-2) n.x=nx; }
+    ctx.fillStyle=pal.npc; ctx.fillText(n.dir>0?'d':'b',(Math.round(n.x)-camX)*CWc,n.y*CH);
+    if(Math.abs(Math.round(n.x)-P.x)<3&&Math.abs(n.y-P.y)<2){
+      const msg=n.say, bx=(Math.round(n.x)-camX)*CWc-msg.length*3, by=(n.y-2)*CH;
+      ctx.fillStyle='rgba(6,14,22,.85)'; ctx.fillRect(bx-6,by-3,msg.length*CH*.56+12,CH+4);
+      ctx.fillStyle=pal.speech; ctx.font='bold '+CH*.62+'px ui-monospace,Menlo,monospace';
+      ctx.fillText(msg,bx,by);
+      ctx.font='bold '+CH*.9+'px ui-monospace,Menlo,monospace'; } });
+  // player
+  ctx.fillStyle=pal.player; ctx.fillText('@',(P.x-camX)*CWc,P.y*CH);
+  requestAnimationFrame(frame);
+}
+const pop=document.getElementById('pop');
+document.getElementById('more').addEventListener('click',()=>pop.classList.toggle('show'));
+
+let sid='ascii'; try{ sid=localStorage.getItem('dinoSid')||'ascii'; }catch(e){}
+try{ navigator.sendBeacon(TELEMETRY_EP, JSON.stringify({ev:'ascii', v:56, sid,
+  ua:navigator.userAgent.slice(0,180), lang:navigator.language||'',
+  tz:(Intl.DateTimeFormat().resolvedOptions().timeZone||''), scr:screen.width+'x'+screen.height})); }catch(e){}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
