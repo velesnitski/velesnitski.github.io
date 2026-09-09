@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>▚ ascii village.</title>
-<meta name="description" content="a village. made of characters.">
+<meta name="description" content="a village. made of characters. now with doors.">
 <meta name="theme-color" content="#0b1220">
 <link rel="shortcut icon" type="image/x-icon" href="../favicons/favicon.ico">
 <style>
@@ -29,31 +29,31 @@
 </head>
 <body>
   <canvas id="c"></canvas>
-  <div id="card"><h1>ascii village.</h1><p>arrows / drag &mdash; walk. talk to the locals.</p></div>
+  <div id="card"><h1>ascii village.</h1><p>arrows / drag &mdash; walk. doors open up.</p></div>
   <div id="more">???</div>
   <div id="pop">
     <b>ascii village.</b> &middot; a village, made of characters<br>
     the dino runs at <a href="../dino/">🍓 Strawberry Dash</a><br>
     the rocket wobbles at <a href="../rocket/">🚀 rocket jump</a><br>
     the fish swim at <a href="../fish/">🐟 fish.</a><br>
-    <span style="color:#4c6a5b">by velesnitski &middot; canvas &middot; ascii v1</span>
+    the dust gathers at <a href="../space/">✦ space.</a><br>
+    <span style="color:#557a73">by velesnitski &middot; canvas &middot; ascii v2</span>
   </div>
 <script>
 addEventListener('error',e=>{ document.title='ERR: '+e.message; });
 const TELEMETRY_EP='https://script.google.com/macros/s/AKfycbyA-zpBfGubbXMPGJNe5_nRhcAWUt19uE_nln2oCbH4XGjnwkT6qjC1cNEWrlpQXnqf/exec';
 const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/* ── world: a character strip, composed from stamps ── */
-const WW=150, WH=30, GY=24;                 // world cols/rows, ground row
-const grid=[];                              // [{c:char, k:class}] per row
-for(let y=0;y<WH;y++){ grid.push(Array.from({length:WW},()=> ({c:' ',k:''}))); }
-function put(x,y,c,k){ if(x>=0&&x<WW&&y>=0&&y<WH){ grid[y][x]={c,k}; } }
-function stamp(x,y,lines,k){ lines.forEach((ln,dy)=>{ for(let dx=0;dx<ln.length;dx++){ if(ln[dx]!==' ') put(x+dx,y+dy,ln[dx],k); } }); }
+/* ── grid helpers ── */
+function makeGrid(w,h){ const g=[]; for(let y=0;y<h;y++) g.push(Array.from({length:w},()=>({c:' ',k:''}))); return g; }
+function putOn(g,x,y,c,k){ if(y>=0&&y<g.length&&x>=0&&x<g[0].length) g[y][x]={c,k}; }
+function stampOn(g,x,y,lines,k){ if(typeof lines==='string') lines=[lines]; lines.forEach((ln,dy)=>{ for(let dx=0;dx<ln.length;dx++){ if(ln[dx]!==' ') putOn(g,x+dx,y+dy,ln[dx],k); } }); }
 
-// ground: surface line + speckled dirt
-for(let x=0;x<WW;x++){ put(x,GY,'▔','gnd');
-  for(let y=GY+1;y<WH;y++){ const r=(x*7+y*13)%17; put(x,y, r===0?'.':r===5?',':' ','dirt'); } }
-
+/* ── outdoor world ── */
+const OW=150, OH=30, GY=24;
+const og=makeGrid(OW,OH);
+for(let x=0;x<OW;x++){ putOn(og,x,GY,'▔','gnd');
+  for(let y=GY+1;y<OH;y++){ const r=(x*7+y*13)%17; putOn(og,x,y, r===0?'.':r===5?',':' ','dirt'); } }
 const HOUSE=[
 "   __",
 "  /  \\_____",
@@ -70,58 +70,105 @@ const HOUSE2=[
 " /_________\\",
 " |  __  __ |",
 " | |::||::||",
-" |_________|"];
-const TREE=[
-"  &&&",
-" &&&&&",
-"&&&&&&&",
-" &&&&&",
-"   |",
-"   |"];
-const WELL=[
-" ___ ",
-"/o o\\",
-"|___|"];
+" |___| |___|"];
+const TREE=["  &&&"," &&&&&","&&&&&&&"," &&&&&","   |","   |"];
+const WELL=[" ___ ","/o o\\","|___|"];
 const FENCE=["+--+--+--+"];
 const PATCH=[",o.,o,.o,",".,o.,.o,."];
+const smokes=[], doors=[];
+function house(x,tall,idx){ const s=tall?HOUSE:HOUSE2, h=s.length;
+  stampOn(og,x,GY-h,s,'house'); smokes.push({x:x+(tall?4:5), y:GY-h-1});
+  doors.push({x:x+6, enter:idx}); }
+house(8,true,0);  house(30,false,1);  house(58,true,2);  house(96,false,3);  house(118,true,4);
+stampOn(og,22,GY-6,TREE,'tree'); stampOn(og,48,GY-6,TREE,'tree');
+stampOn(og,76,GY-6,TREE,'tree'); stampOn(og,84,GY-6,TREE,'tree');
+stampOn(og,110,GY-6,TREE,'tree'); stampOn(og,136,GY-6,TREE,'tree');
+stampOn(og,70,GY-3,WELL,'well');
+stampOn(og,42,GY-1,FENCE,'fence'); stampOn(og,126,GY-1,FENCE,'fence');
+stampOn(og,88,GY-2,PATCH,'patch'); stampOn(og,14,GY-2,PATCH,'patch');
+const windows=[];
+for(let y=0;y<OH;y++)for(let x=0;x<OW;x++){ if(og[y][x].c===':') windows.push({x,y,ph:Math.random()*9}); }
+const OUT={grid:og, WW:OW, WH:OH, GY, top:GY+1, bot:OH-2, outdoor:true};
 
-const smokes=[];                    // chimney mouths
-function house(x,tall){ const s=tall?HOUSE:HOUSE2, h=s.length;
-  stamp(x,GY-h,s,'house'); smokes.push({x:x+(tall?4:5), y:GY-h-1}); }
-house(8,true);  house(30,false);  house(58,true);  house(96,false);  house(118,true);
-stamp(22,GY-TREE.length,TREE,'tree'); stamp(48,GY-TREE.length,TREE,'tree');
-stamp(76,GY-TREE.length,TREE,'tree'); stamp(84,GY-TREE.length,TREE,'tree');
-stamp(110,GY-TREE.length,TREE,'tree'); stamp(136,GY-TREE.length,TREE,'tree');
-stamp(70,GY-WELL.length,WELL,'well');
-stamp(42,GY-1,FENCE,'fence'); stamp(126,GY-1,FENCE,'fence');
-stamp(88,GY-2,PATCH,'patch'); stamp(14,GY-2,PATCH,'patch');
-// windows list for night flicker
-const windows=[]; for(let y=0;y<WH;y++)for(let x=0;x<WW;x++){ if(grid[y][x].c===':') windows.push({x,y,ph:Math.random()*9}); }
+/* ── distant skyline (parallax layer — a nod to the ascii city) ── */
+const SKW=120, SKH=13, sky=[];   // per column: height + window pattern seed
+for(let x=0;x<SKW;x++){ const r=(x*2654435761>>>0)%1000/1000;
+  const h=(x%9===3||x%13===7)? 4+Math.floor(r*9) : (r<.55? 2+Math.floor(r*6):0);
+  sky.push({h, s:r}); }
 
-/* ── palette by hour ── */
-function palette(){
-  const h=new Date().getHours();
-  const night=(h>=21||h<6), dusk=(h>=18&&h<21)||(h>=6&&h<8);
-  return { night, dusk,
-    sky:   night?'#070d1a': dusk?'#1a1626':'#12233a',
-    star:  '#e8f0ff', cloud: night?'#26344a':'#4a6078',
-    gnd:'#4c6a4c', dirt:'#2c3c34', house:'#c9a06a', win: night?'#ffd76a':'#3a4a5a',
-    tree:'#5fae6f', trunk:'#8a6a48', well:'#9ab0c0', fence:'#7a6a52',
-    patch:'#5fae6f', berry:'#e5546a', player:'#ffffff', npc:'#9fd0b8',
-    smoke:'#8a97a5', speech:'#eaf6ee' };
+/* ── interiors ── */
+function baseRoom(){
+  const W=46, H=26, FY=21;                             // FY = wall/floor seam; the floor runs below it
+  const g=makeGrid(W,H);
+  for(let x=2;x<=43;x++){ putOn(g,x,3,'─','wall'); putOn(g,x,FY,'▔','seam'); putOn(g,x,25,'─','wall'); }
+  for(let y=3;y<=24;y++){ putOn(g,2,y,'│','wall'); putOn(g,43,y,'│','wall'); }
+  putOn(g,2,3,'┌','wall'); putOn(g,43,3,'┐','wall');
+  putOn(g,2,25,'└','wall'); putOn(g,43,25,'┘','wall');
+  stampOn(g,21,23,"▒▒▒▒",'rug');                       // the way out
+  stampOn(g,6,5,"[::]",'winlite'); stampOn(g,36,5,"[::]",'winlite');
+  return {grid:g, WW:W, WH:H, GY:FY, top:FY+1, bot:24, outdoor:false, exitX:22};
 }
+const FIREPLACE=[" _____ ","|     |","|     |","|_____|"];
+const TABLE=[" ______ "," |    | "];
+const SHELF=["|=====|","|=====|","|=====|"];
+const BED=["  ____________"," |  __        |"," |_|__|_______|"];
+const PLANT=["\\|/"," | ","(_)"];
+const STOVE=[" ___ ","|o o|","|___|"];
+const interiors=[];
+for(let i=0;i<5;i++){
+  const r=baseRoom(); const g=r.grid;
+  if(i===0){ stampOn(g,7,17,FIREPLACE,'brick'); r.fire={x:10,y:19};
+             stampOn(g,30,20,"=^.^=",'cat'); r.cat={x:30,y:20};
+             stampOn(g,16,19,TABLE,'wood'); }
+  if(i===1){ stampOn(g,7,18,STOVE,'brick'); stampOn(g,14,19,TABLE,'wood');
+             stampOn(g,26,19,TABLE,'wood'); stampOn(g,35,18,PLANT,'tree'); }
+  if(i===2){ stampOn(g,6,15,SHELF,'wood'); stampOn(g,14,15,SHELF,'wood');
+             stampOn(g,30,19,TABLE,'wood'); stampOn(g,38,18,PLANT,'tree'); }
+  if(i===3){ stampOn(g,7,18,BED,'wood'); stampOn(g,32,18,PLANT,'tree');
+             stampOn(g,26,20,"=^.^=",'cat'); r.cat={x:26,y:20}; }
+  if(i===4){ for(let y=6;y<=20;y++) putOn(g,38,y,'H','wood'); r.ladder={x:38};
+             stampOn(g,8,19,TABLE,'wood'); stampOn(g,15,18,PLANT,'tree'); }
+  interiors.push(r);
+}
+/* attic with the telescope */
+const ATTIC=(()=>{ const W=46,H=20,FY=15; const g=makeGrid(W,H);
+  for(let d=0;d<9;d++){ putOn(g,14-d,5+d,'/','wall'); putOn(g,31+d,5+d,'\\','wall'); }
+  for(let x=5;x<=40;x++){ putOn(g,x,FY,'▔','seam'); putOn(g,x,18,'─','wall'); }
+  for(let x=14;x<=31;x++) putOn(g,x,4,'─','wall');
+  for(let y=6;y<=17;y++){ putOn(g,5,y,'│','wall'); putOn(g,40,y,'│','wall'); }
+  putOn(g,5,18,'└','wall'); putOn(g,40,18,'┘','wall');
+  for(let y=10;y<=14;y++) putOn(g,36,y,'H','wood');
+  stampOn(g,24,11,"  __o","scope"); stampOn(g,24,12," /|","scope"); stampOn(g,24,13,"/ |","scope");
+  stampOn(g,9,13,"[::]",'winlite');
+  return {grid:g, WW:W, WH:H, GY:FY, top:FY+1, bot:17, outdoor:false, hatch:{x:36}, scope:{x:26}};
+})();
 
-/* ── player & npcs (foreground street band, rows GY+1..WH-2) ── */
-const P={x:6,y:GY+2};
+/* ── player, worlds, transitions ── */
+let cur=OUT, P={x:6,y:GY+2}, moved=false;
 const NPCS=[
   {x:36,y:GY+2,dir:1, say:'nice weather. statistically.'},
   {x:80,y:GY+3,dir:-1,say:'the fish says hi.'},
   {x:120,y:GY+2,dir:1,say:'strawberries. again.'}
 ];
-let moved=false;
+function vibe(ms){ try{ navigator.vibrate&&navigator.vibrate(ms); }catch(e){} }
+function goTo(w,x){ cur=w; P.x=x; P.y=w.top+1; vibe(8); }
+let lastDoor=0;
+function tryUp(){
+  if(cur===OUT){ const d=doors.find(d=>Math.abs(d.x-P.x)<=1);
+    if(d){ lastDoor=d.enter; goTo(interiors[d.enter], interiors[d.enter].exitX); return true; } }
+  else if(cur.ladder && Math.abs(cur.ladder.x-P.x)<=1){ goTo(ATTIC, ATTIC.hatch.x); return true; }
+  return false;
+}
+function tryDown(){
+  if(cur===ATTIC && Math.abs(ATTIC.hatch.x-P.x)<=1){ goTo(interiors[4], interiors[4].ladder.x); return true; }
+  if(!cur.outdoor && cur!==ATTIC && Math.abs(cur.exitX-P.x)<=2){ goTo(OUT, doors[lastDoor].x); return true; }
+  return false;
+}
 function step(dx,dy){
-  P.x=Math.max(1,Math.min(WW-2,P.x+dx));
-  P.y=Math.max(GY+1,Math.min(WH-2,P.y+dy));
+  if(dy<0 && tryUp()) return;
+  if(dy>0 && tryDown()) return;
+  P.x=Math.max(1,Math.min(cur.WW-2,P.x+dx));
+  P.y=Math.max(cur.top,Math.min(cur.bot,P.y+dy));
   if(!moved){ moved=true; document.getElementById('card').classList.add('gone'); }
 }
 const KEYS={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1],a:[-1,0],d:[1,0],w:[0,-1],s:[0,1]};
@@ -137,70 +184,114 @@ addEventListener('pointermove',e=>{ if(!drag) return;
     drag={x:e.clientX,y:e.clientY}; } },{passive:true});
 addEventListener('pointerup',()=>{ drag=null; },{passive:true});
 
-/* ── render ── */
-const cv=document.getElementById('c'), ctx=cv.getContext('2d');
-let W=innerWidth,H=innerHeight,DPR=Math.min(2,devicePixelRatio||1),CH=20,CWc=12;
-function resize(){ W=innerWidth;H=innerHeight; cv.width=W*DPR; cv.height=H*DPR;
-  CH=Math.max(12,Math.min(24,Math.floor(H/(WH+1)))); CWc=Math.round(CH*.62); }
-addEventListener('resize',resize); resize();
-
-const stars=Array.from({length:70},()=>({x:Math.random(),y:Math.random()*.7,ph:Math.random()*9}));
-const clouds=[{x:20,y:4},{x:70,y:7},{x:120,y:3}];
-const parts=[];                                        // smoke
-let t=0,last=performance.now(),camX=0;
-
-function cellColor(cell,pal,x,y){
+/* ── palette & render ── */
+function palette(){
+  const h=new Date().getHours();
+  const night=(h>=21||h<6), dusk=(h>=18&&h<21)||(h>=6&&h<8);
+  return { night, dusk,
+    sky: night?'#070d1a': dusk?'#1a1626':'#12233a', room:'#14100c', attic:'#100d09',
+    star:'#e8f0ff', cloud: night?'#26344a':'#4a6078',
+    gnd:'#4c6a4c', dirt:'#2c3c34', house:'#c9a06a', win: night?'#ffd76a':'#3a4a5a',
+    tree:'#5fae6f', trunk:'#8a6a48', well:'#9ab0c0', fence:'#7a6a52',
+    patch:'#5fae6f', berry:'#e5546a', player:'#ffffff', npc:'#9fd0b8',
+    smoke:'#8a97a5', speech:'#eaf6ee',
+    skyline: night?'#243350':'#2c3d5c', skylite:'#b98a4e',
+    wall:'#9a8a70', wood:'#a08858', brick:'#b06a4a', rug:'#7a5a4a',
+    cat:'#d8ccb4', scope:'#9ab0c0', winlite: night?'#ffd76a':'#6a7f9a' };
+}
+function cellColor(cell,pal){
   switch(cell.k){
     case 'gnd': return pal.gnd; case 'dirt': return pal.dirt;
     case 'house': return cell.c===':' ? pal.win : pal.house;
     case 'tree': return cell.c==='|' ? pal.trunk : pal.tree;
     case 'well': return pal.well; case 'fence': return pal.fence;
     case 'patch': return cell.c==='o' ? pal.berry : pal.patch;
+    case 'wall': return pal.wall; case 'seam': return '#5a4f40'; case 'wood': return pal.wood;
+    case 'brick': return pal.brick; case 'rug': return pal.rug;
+    case 'cat': return pal.cat; case 'scope': return pal.scope;
+    case 'winlite': return pal.winlite;
     default: return '#cfe6d8'; }
+}
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+let W=innerWidth,H=innerHeight,DPR=Math.min(2,devicePixelRatio||1),CH=20,CWc=12;
+function resize(){ W=innerWidth;H=innerHeight; cv.width=W*DPR; cv.height=H*DPR;
+  CH=Math.max(12,Math.min(24,Math.floor(H/(OH+1)))); CWc=Math.round(CH*.62); }
+addEventListener('resize',resize); resize();
+
+const stars=Array.from({length:70},()=>({x:Math.random(),y:Math.random()*.7,ph:Math.random()*9}));
+const clouds=[{x:20,y:4},{x:70,y:7},{x:120,y:3}];
+const parts=[];
+const FIRECH=['(',')','^','~','*'];
+let t=0,last=performance.now();
+function bubble(msg,cx,cy,pal){
+  const bx=cx*CWc-msg.length*3, by=cy*CH;
+  ctx.fillStyle='rgba(6,14,22,.85)'; ctx.fillRect(bx-6,by-3,msg.length*CH*.56+12,CH+4);
+  ctx.fillStyle=pal.speech; ctx.font='bold '+CH*.62+'px ui-monospace,Menlo,monospace';
+  ctx.fillText(msg,bx,by);
+  ctx.font='bold '+CH*.9+'px ui-monospace,Menlo,monospace';
 }
 function frame(nowMs){
   const dt=Math.min(.05,(nowMs-last)/1000); last=nowMs; t+=dt;
   if(held&&nowMs>rep){ const k=KEYS[held]; if(k){ step(k[0],k[1]); rep=nowMs+120; } }
-  const pal=palette();
+  const pal=palette(), w=cur;
   ctx.setTransform(DPR,0,0,DPR,0,0);
-  ctx.fillStyle=pal.sky; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle= w.outdoor? pal.sky : (w===ATTIC? pal.attic : pal.room);
+  ctx.fillRect(0,0,W,H);
   const cols=Math.ceil(W/CWc);
-  camX=Math.max(0,Math.min(WW-cols, Math.round(P.x-cols/2)));
+  const camX=Math.max(0,Math.min(Math.max(0,w.WW-cols), Math.round(P.x-cols/2)));
+  const ox=Math.max(0,((cols-w.WW)/2)|0);                    // center small rooms
   ctx.font='bold '+CH*.9+'px ui-monospace,Menlo,monospace'; ctx.textBaseline='top';
-  // sky life
-  if(pal.night){ stars.forEach(s=>{ ctx.globalAlpha=.35+.6*Math.abs(Math.sin(t+s.ph));
-      ctx.fillStyle=pal.star; ctx.fillText(Math.sin(s.ph)>0?'.':'+', s.x*W, s.y*GY*CH*.8); }); ctx.globalAlpha=1; }
-  else{ ctx.fillStyle=pal.cloud; clouds.forEach(c=>{ c.x+=(REDUCED?.05:.25)*dt; if(c.x>WW) c.x=-14;
-      const sx=(c.x-camX)*CWc; ctx.fillText('~~~~~~',sx,c.y*CH); ctx.fillText(' ~~~~',sx,(c.y+1)*CH); }); }
+  if(w.outdoor){
+    if(pal.night){ stars.forEach(s=>{ ctx.globalAlpha=.35+.6*Math.abs(Math.sin(t+s.ph));
+        ctx.fillStyle=pal.star; ctx.fillText(Math.sin(s.ph)>0?'.':'+', s.x*W, s.y*GY*CH*.8); }); ctx.globalAlpha=1; }
+    else{ ctx.fillStyle=pal.cloud; clouds.forEach(c=>{ c.x+=(REDUCED?.05:.25)*dt; if(c.x>OW) c.x=-14;
+        const sx=(c.x-camX)*CWc; ctx.fillText('~~~~~~',sx,c.y*CH); ctx.fillText(' ~~~~',sx,(c.y+1)*CH); }); }
+    // parallax skyline behind the village
+    const soff=camX*.45;
+    for(let cx=-1;cx<=cols+1;cx++){ const sx=Math.floor(cx+soff); if(sx<0||sx>=SKW) continue;
+      const tw=sky[sx]; if(!tw.h) continue;
+      for(let k=0;k<tw.h;k++){ const y=GY-1-k;
+        const lit = pal.night && (((sx*31+k*17)%23)===0) && Math.sin(t*.4+sx+k)>0;
+        ctx.fillStyle= lit? pal.skylite : pal.skyline;
+        ctx.fillText(lit?':':(k===tw.h-1&&tw.s>.8?'|':'#'), cx*CWc, y*CH); } }
+  }
   // world glyphs
-  for(let y=0;y<WH;y++){ for(let cx=0;cx<=cols;cx++){ const x=camX+cx; if(x>=WW) break;
-    const cell=grid[y][x]; if(cell.c===' ') continue;
+  for(let y=0;y<w.WH;y++){ for(let cx=0;cx<=cols;cx++){ const x=camX+cx-ox; if(x<0) continue; if(x>=w.WW) break;
+    const cell=w.grid[y][x]; if(cell.c===' ') continue;
     let ch=cell.c, px=cx*CWc;
-    if(cell.k==='tree'&&ch==='&'&&!REDUCED) px+=Math.sin(t*1.4+x*.5)*1.5;      // sway
-    if(cell.k==='house'&&ch===':'){ const w=windows.find(w=>w.x===x&&w.y===y);
-      ctx.fillStyle = pal.night&&w ? (Math.sin(t*.7+w.ph)>-.85?pal.win:'#3a4a5a') : pal.win; }
-    else ctx.fillStyle=cellColor(cell,pal,x,y);
+    if(cell.k==='tree'&&ch==='&'&&!REDUCED) px+=Math.sin(t*1.4+x*.5)*1.5;
+    if(cell.k==='house'&&ch===':'){ const wd=windows.find(v=>v.x===x&&v.y===y);
+      ctx.fillStyle = pal.night&&wd ? (Math.sin(t*.7+wd.ph)>-.85?pal.win:'#3a4a5a') : pal.win; }
+    else ctx.fillStyle=cellColor(cell,pal);
     ctx.fillText(ch,px,y*CH); } }
-  // smoke
-  if(!REDUCED&&Math.random()<.12){ const s=smokes[Math.floor(Math.random()*smokes.length)];
-    parts.push({x:s.x,y:s.y,a:1,vx:.3+Math.random()*.4}); }
-  ctx.fillStyle=pal.smoke;
-  parts.forEach(p=>{ p.y-=dt*2.2; p.x+=p.vx*dt; p.a-=dt*.25;
-    ctx.globalAlpha=Math.max(0,p.a); ctx.fillText(p.a>.6?'.':p.a>.3?'o':'°',(p.x-camX)*CWc,p.y*CH); });
-  ctx.globalAlpha=1;
-  for(let i=parts.length-1;i>=0;i--) if(parts[i].a<=0) parts.splice(i,1);
-  // npcs wander the street
-  NPCS.forEach(n=>{ if(!REDUCED&&Math.random()<.01) n.dir=-n.dir;
-    if(!REDUCED&&Math.random()<.06){ const nx=n.x+n.dir*.5; if(nx>2&&nx<WW-2) n.x=nx; }
-    ctx.fillStyle=pal.npc; ctx.fillText(n.dir>0?'d':'b',(Math.round(n.x)-camX)*CWc,n.y*CH);
-    if(Math.abs(Math.round(n.x)-P.x)<3&&Math.abs(n.y-P.y)<2){
-      const msg=n.say, bx=(Math.round(n.x)-camX)*CWc-msg.length*3, by=(n.y-2)*CH;
-      ctx.fillStyle='rgba(6,14,22,.85)'; ctx.fillRect(bx-6,by-3,msg.length*CH*.56+12,CH+4);
-      ctx.fillStyle=pal.speech; ctx.font='bold '+CH*.62+'px ui-monospace,Menlo,monospace';
-      ctx.fillText(msg,bx,by);
-      ctx.font='bold '+CH*.9+'px ui-monospace,Menlo,monospace'; } });
-  // player
-  ctx.fillStyle=pal.player; ctx.fillText('@',(P.x-camX)*CWc,P.y*CH);
+  if(w.outdoor){
+    if(!REDUCED&&Math.random()<.12){ const s=smokes[Math.floor(Math.random()*smokes.length)];
+      parts.push({x:s.x,y:s.y,a:1,vx:.3+Math.random()*.4}); }
+    ctx.fillStyle=pal.smoke;
+    parts.forEach(p=>{ p.y-=dt*2.2; p.x+=p.vx*dt; p.a-=dt*.25;
+      ctx.globalAlpha=Math.max(0,p.a); ctx.fillText(p.a>.6?'.':p.a>.3?'o':'°',(p.x-camX)*CWc,p.y*CH); });
+    ctx.globalAlpha=1;
+    for(let i=parts.length-1;i>=0;i--) if(parts[i].a<=0) parts.splice(i,1);
+    NPCS.forEach(n=>{ if(!REDUCED&&Math.random()<.01) n.dir=-n.dir;
+      if(!REDUCED&&Math.random()<.06){ const nx=n.x+n.dir*.5; if(nx>2&&nx<OW-2) n.x=nx; }
+      ctx.fillStyle=pal.npc; ctx.fillText(n.dir>0?'d':'b',(Math.round(n.x)-camX)*CWc,n.y*CH);
+      if(Math.abs(Math.round(n.x)-P.x)<3&&Math.abs(n.y-P.y)<2) bubble(n.say,Math.round(n.x)-camX,n.y-2,pal); });
+    const d=doors.find(d=>Math.abs(d.x-P.x)<=1);
+    if(d) bubble('^ enter', d.x-camX, GY-9, pal);
+  } else {
+    if(w.fire&&!REDUCED){ for(let k=0;k<3;k++){
+      ctx.fillStyle= Math.random()<.6?'#f0803c':'#ffd76a';
+      ctx.fillText(FIRECH[(Math.random()*FIRECH.length)|0],(w.fire.x-camX+ox+k-1)*CWc,(w.fire.y-((Math.random()*2)|0))*CH); } }
+    if(w.cat){ const blink=Math.sin(t*.5+2)>.96;
+      ctx.fillStyle=pal.cat; ctx.fillText(blink?'=-.-=':'=^.^=',(w.cat.x-camX+ox)*CWc,w.cat.y*CH);
+      if(Math.abs(w.cat.x+2-P.x)<4&&Math.abs(w.cat.y-P.y)<3) bubble('mew.',w.cat.x-camX+ox+2,w.cat.y-2,pal); }
+    if(w.ladder&&Math.abs(w.ladder.x-P.x)<=1) bubble('^ up', w.ladder.x-camX+ox, 8, pal);
+    if(w===ATTIC){
+      if(Math.abs(ATTIC.hatch.x-P.x)<=1) bubble('v down', ATTIC.hatch.x-camX+ox, 8, pal);
+      if(Math.abs(ATTIC.scope.x-P.x)<=2) bubble('the strawberry is up there. somewhere.', ATTIC.scope.x-camX+ox, 7, pal);
+    } else if(Math.abs(w.exitX-P.x)<=2) bubble('v leave', w.exitX-camX+ox, w.GY-3, pal);
+  }
+  ctx.fillStyle=pal.player; ctx.fillText('@',(P.x-camX+(w.outdoor?0:ox))*CWc,P.y*CH);
   requestAnimationFrame(frame);
 }
 const pop=document.getElementById('pop');
