@@ -46,10 +46,102 @@
 		<meta http-equiv="X-Content-Type-Options" content="nosniff">
 		<meta http-equiv="X-XSS-Protection" content="1; mode=block">
 
+		<!-- Canonical + machine-readable alternates (llms.txt, Markdown mirror) -->
+		<link rel="canonical" href="https://velesnitski.github.io/" />
+		<link rel="alternate" type="text/markdown" href="https://velesnitski.github.io/index.md" title="Markdown version" />
+		<link rel="alternate" type="text/plain" href="https://velesnitski.github.io/llms.txt" title="llms.txt" />
+
+		<!-- Structured data: who this page is about (schema.org Person / WebSite / WebPage) -->
+		<script type="application/ld+json">
+			{
+			  "@context": "https://schema.org",
+			  "@graph": [
+			    {
+			      "@type": "Person",
+			      "@id": "https://velesnitski.github.io/#person",
+			      "name": "Alex Velesnitski",
+			      "url": "https://velesnitski.github.io/",
+			      "image": "https://velesnitski.github.io/favicons/apple-touch-icon.png",
+			      "jobTitle": "Head of Engineering",
+			      "description": "CTO / Head of Engineering: software development, infrastructure and engineering leadership. Led 50+ engineer teams; built healthcare platforms, high-load VPN/ZTNA products at 10M+ user scale, and open-source developer tooling (MCP servers).",
+			      "email": "mailto:pawls.driller7o@icloud.com",
+			      "knowsLanguage": [
+			        "en",
+			        "ru"
+			      ],
+			      "knowsAbout": [
+			        "Software architecture",
+			        "Engineering management",
+			        "Technical leadership",
+			        "Rust",
+			        "Go",
+			        "C#/.NET",
+			        "TypeScript/Node.js",
+			        "Python",
+			        "PHP",
+			        "Docker",
+			        "Kubernetes",
+			        "Terraform",
+			        "GitLab CI/CD",
+			        "GitHub Actions",
+			        "Model Context Protocol (MCP)",
+			        "AI-assisted software engineering",
+			        "VPN/ZTNA",
+			        "Healthcare software",
+			        "High-load systems",
+			        "Developer tooling"
+			      ],
+			      "sameAs": [
+			        "https://github.com/velesnitski",
+			        "https://www.linkedin.com/in/velesnitski/",
+			        "https://stackoverflow.com/users/3190873/alex-v",
+			        "https://www.crunchbase.com/person/alex-velesnitski",
+			        "https://www.kaggle.com/velesnitski",
+			        "https://leetcode.com/velesnitski/"
+			      ]
+			    },
+			    {
+			      "@type": "WebSite",
+			      "@id": "https://velesnitski.github.io/#website",
+			      "url": "https://velesnitski.github.io/",
+			      "name": "Alex Velesnitski",
+			      "description": "Professional landing page of Alex Velesnitski, CTO / Head of Engineering.",
+			      "inLanguage": "en",
+			      "author": {
+			        "@id": "https://velesnitski.github.io/#person"
+			      }
+			    },
+			    {
+			      "@type": "WebPage",
+			      "@id": "https://velesnitski.github.io/#webpage",
+			      "url": "https://velesnitski.github.io/",
+			      "name": "Alex Velesnitski - CTO/EM/Architect",
+			      "isPartOf": {
+			        "@id": "https://velesnitski.github.io/#website"
+			      },
+			      "about": {
+			        "@id": "https://velesnitski.github.io/#person"
+			      },
+			      "mainEntity": {
+			        "@id": "https://velesnitski.github.io/#person"
+			      },
+			      "inLanguage": "en"
+			    }
+			  ]
+			}
+		</script>
+
 		<link rel="stylesheet" href="assets/css/main.css" />
 		<link rel="shortcut icon" type="image/x-icon" href="./favicons/favicon.ico?">
 		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
 		<style>
+			#header p.summary {
+				font-size: 0.95em;
+				max-width: 38em;
+				margin: 0.5em auto 0;
+				padding: 0 1em;
+				box-sizing: border-box;
+			}
 			#header nav ul li.github-followers {
 				display: block;
 				width: 100%;
@@ -97,6 +189,7 @@
 						<h1>Alex Velesnitski</h1>
 						<p>Currently Head of Engineering @ <a href="https://www.google.com/search?q=cybersecurity">🥷</a><br/> ex-CTO @<a href="https://timspark.com/technologies/">Timspark</a> / ex-CTO @<a href="https://intetics.com/methodology/team-formation/">Intetics</a></p>
 						<p2>Humble Computer Scientist</p2>
+						<p class="summary">Software development, infrastructure and engineering leadership. 50+ engineer teams, healthcare platforms, high-load VPN/ZTNA at 10M+ user scale, open-source MCP tooling.</p>
 						<nav>
 							<ul>
 								<li><a href="https://github.com/velesnitski/CV#alex-velesnitski" class="icon brands fa-github"><span class="label">Github</span></a></li>
@@ -115,7 +208,7 @@
 
 				<!-- Footer -->
 					<footer id="footer">
-						<span class="copyright" id="cpy">&copy; alexvelesnitski. icons by <a href="https://www.flaticon.com/free-icons/professions-and-jobs" title="flaticon professions and jobs icons">xnimrodx@flaticon</a> <a href="rocket/" title="rocket jump" aria-label="rocket jump" style="text-decoration:none;color:inherit">&middot;</a> <a href="fish/" title="fish." aria-label="fish" style="text-decoration:none;color:inherit">&middot;</a> <a href="ascii/" title="ascii village." aria-label="ascii village" style="text-decoration:none;color:inherit">&middot;</a> <a href="space/" title="space." aria-label="space" style="text-decoration:none;color:inherit">&middot;</a> <a href="dino/" title="a little something for the kids" aria-label="play a game" style="text-decoration:none;opacity:.45">🦕</a></span>
+						<span class="copyright" id="cpy">&copy; alexvelesnitski. icons by <a href="https://www.flaticon.com/free-icons/professions-and-jobs" title="flaticon professions and jobs icons">xnimrodx@flaticon</a> <a href="rocket/" title="rocket jump" aria-label="rocket jump" style="text-decoration:none;color:inherit">&middot;</a> <a href="fish/" title="fish." aria-label="fish" style="text-decoration:none;color:inherit">&middot;</a> <a href="ascii/" title="ascii village." aria-label="ascii village" style="text-decoration:none;color:inherit">&middot;</a> <a href="space/" title="space." aria-label="space" style="text-decoration:none;color:inherit">&middot;</a> <a href="llms.txt" title="llms.txt: this site for AI agents" style="text-decoration:none;opacity:.45">llms.txt</a> <a href="index.md" title="Markdown version of this page" style="text-decoration:none;opacity:.45">md</a> <a href="dino/" title="a little something for the kids" aria-label="play a game" style="text-decoration:none;opacity:.45">🦕</a></span>
 					</footer>
 
 			</div>

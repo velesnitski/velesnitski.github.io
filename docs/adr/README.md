@@ -18,3 +18,4 @@ Number sequentially (`0001`, `0002`, …). Supersede rather than delete: mark th
 ## Index
 
 - [0001 — Remove public hourly rate from header](0001-remove-public-hourly-rate.md)
+- [0099 - Agent readiness: JSON-LD, llms.txt rewrite, Markdown mirror](0099-agent-readiness.md)

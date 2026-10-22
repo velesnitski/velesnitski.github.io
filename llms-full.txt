@@ -1,0 +1,54 @@
+# Alex Velesnitski - extended profile
+
+Last updated: 2026-10-22. Source of truth for dates and details: https://github.com/velesnitski/CV
+
+## Summary
+
+Alex Velesnitski is a CTO / Head of Engineering with 18+ years in software: backend and system architecture, infrastructure, and engineering leadership. He has led teams of 50+ engineers and built healthcare platforms, high-load VPN/ZTNA products serving 10M+ users, and open-source developer tooling around the Model Context Protocol (MCP).
+
+## Roles
+
+- Head of Engineering, cybersecurity (VPN/ZTNA) product company - current. Owns engineering end to end: mobile and desktop clients, backend, infrastructure and QA teams; security, compliance and cloud infrastructure.
+- CTO, Timspark - software services company; technology strategy, delivery, AI services line.
+- CTO, Intetics - software services company; AWS Advanced Services Partner accreditation; GSA Professional Awards 2022, Manager of the Year finalist.
+
+## Tech focus
+
+- Languages: Rust, Go, C#/.NET, TypeScript/Node.js, Python, PHP
+- Infrastructure: Docker, Kubernetes, Terraform, Traefik, GitLab CI/CD, GitHub Actions
+- Domains: VPN/ZTNA and network-filtering detection, healthcare, high-load systems, developer tooling (MCP servers), team analytics, code-quality automation, AI-assisted software engineering
+
+## Open source (selected)
+
+MCP servers
+- gl-mcp (Rust): GitLab MCP server - code review, team analytics, spec-drift audits. https://github.com/velesnitski/gl-mcp
+- yt-mcp (Python): YouTrack MCP server - issues, sprint boards, team dashboards. https://github.com/velesnitski/yt-mcp
+- zbbx-mcp (Python): Zabbix MCP server - infrastructure monitoring, traffic analysis. https://github.com/velesnitski/zbbx-mcp
+- slk-mcp (Go): Slack MCP server - digests, decision detection, voice transcription. https://github.com/velesnitski/slk-mcp
+
+Tools and guides
+- detect-blocking (Bash): diagnose what kind of network filtering blocks a VPN endpoint; 27 probes, baseline/diff, CI-tested. https://github.com/velesnitski/detect-blocking
+- 529kit: local AI fallback kit (Ollama + Hermes + open-weights model) for cloud-model outages, drill-first. https://github.com/velesnitski/529kit
+- claude-code-quickstart: Claude Code in 12 minutes. https://github.com/velesnitski/claude-code-quickstart
+- rca-template: AI-assisted root cause analysis framework. https://github.com/velesnitski/rca-template
+- Multi-agent templates for Claude Code: php-agents-boilerplate, nuxt-agents, wp-agents.
+
+## Talks and press
+
+- Predictive Software Engineering, WorldS4 2022, London (conference talk): https://youtu.be/nEKDpjmBoQE?si=X4xtLANuUGdYvahV&t=2387
+- AI, Innovation, and Technology Strategy (interview): https://www.youtube.com/watch?v=ozePeY7JZ7Q
+- it-sa Cybersecurity / GITEX Global 2023; Slush / MEDICA 2023; Transform / ITB 2024 (conference participation)
+- Custom AI Development: Trends and Strategy (article): https://timspark.com/blog/custom-ai-development-services-trends/
+- CTO Interview: Business and Technology Strategy (GoodFirms): https://timspark.com/blog/goodfirms-interview-on-timspark-strategy/
+
+## Contact
+
+- Email: pawls.driller7o@icloud.com
+- LinkedIn: https://www.linkedin.com/in/velesnitski/
+- GitHub: https://github.com/velesnitski
+- Stack Overflow: https://stackoverflow.com/users/3190873/alex-v
+- Crunchbase: https://www.crunchbase.com/person/alex-velesnitski
+
+## Also on this site
+
+- Strawberry Dash (https://velesnitski.github.io/dino/): a one-button browser game for kids - canvas, Web Audio synth, no backend; decisions logged in docs/adr of the site repository.
