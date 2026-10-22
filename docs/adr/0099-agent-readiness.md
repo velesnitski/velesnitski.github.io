@@ -24,9 +24,11 @@ sitemap.xml carried an invalid lastmod (`2025-19-08`).
 - **llms.txt rewritten** to the current profile (roles, stack, open source,
   talks, contact) with real links; **llms-full.txt** added as the extended
   one-file version; **index.md** added as a Markdown mirror of the page.
-- **Links to the files** from the page: `<link rel="canonical">`,
-  `<link rel="alternate">` for Markdown and llms.txt in `<head>`, and small
-  footer links. Agents reach machine-readable files by following links.
+- **Links to the files** from the page: `<link rel="canonical">` and
+  `<link rel="alternate">` for Markdown and llms.txt in `<head>`. Agents reach
+  machine-readable files by following links; the `<head>` links are enough.
+  Visible footer links were tried and removed the same day (owner: keep the
+  footer clean) - see PR #135.
 - **robots.txt** reduced to allow-all plus the sitemap. **sitemap.xml** fixed
   and extended with `/dino/`.
 
