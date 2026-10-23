@@ -19,8 +19,11 @@ sitemap.xml carried an invalid lastmod (`2025-19-08`).
 - **JSON-LD** in `index.html`: a `@graph` of `Person` (name, title,
   description, `knowsAbout`, `sameAs`), `WebSite` and `WebPage`. Employer is
   described, not named, consistent with the header.
-- **One visible summary line** under the subtitle, so the answer to "who is
-  this and what does he do" is in the initial HTML, not only in meta tags.
+- **One short visible line** under the subtitle (`Software · infrastructure ·
+  engineering leadership`), so the answer to "who is this and what does he do"
+  is in the initial HTML, not only in meta tags. Started as a two-sentence
+  summary; cut to a tag-style line the next day to keep the hero minimal
+  (PR #136). The full sentence lives in `meta description` and JSON-LD.
 - **llms.txt rewritten** to the current profile (roles, stack, open source,
   talks, contact) with real links; **llms-full.txt** added as the extended
   one-file version; **index.md** added as a Markdown mirror of the page.
